@@ -4,13 +4,14 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createStore, defineSchema, ChangeType, type MutationEvent } from '../../src/store/index';
-import { setDefaultBatchMode as setBatchMode, getPendingCount, flush } from '../../src/core/batch';
+import { setDefaultBatchMode as setBatchMode, getPendingCount, flush, __resetBatch } from '../../src/core/batch';
 import { __resetSubscriptions } from '../../src/core/subscription';
 import { __resetProxyId } from '../../src/core/proxy';
 import { proxify } from '../../src/core/proxy';
 
 beforeEach(() => {
   setBatchMode('sync');
+  __resetBatch();
   __resetSubscriptions();
   __resetProxyId();
 });

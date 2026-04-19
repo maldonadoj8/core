@@ -227,7 +227,7 @@ export class Store {
       tableMap.set(id, proxy);
       this._refreshCollection(internalTable);
       const change: ChangeRecord<T> = { type: CT.INSERT, record: proxy };
-      this._emitMutation({ type: 'upsert', table: internalTable, change: CT.INSERT, record: proxy });
+      this._emitMutation({ type: 'upsert', table: internalTable, change: CT.INSERT, record: proxy as Proxified<Record<string, unknown>> });
       return change;
     }
 
@@ -247,7 +247,7 @@ export class Store {
     (existing as any).__source = rawRecord;
     // No collection refresh needed — structure didn't change.
     const change: ChangeRecord<T> = { type: CT.UPDATE, record: existing, previous };
-    this._emitMutation({ type: 'upsert', table: internalTable, change: CT.UPDATE, record: existing, previous: previous as Record<string, unknown> });
+    this._emitMutation({ type: 'upsert', table: internalTable, change: CT.UPDATE, record: existing as Proxified<Record<string, unknown>>, previous: previous as Record<string, unknown> });
     return change;
   }
 

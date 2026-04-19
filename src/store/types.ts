@@ -118,7 +118,7 @@ export interface MutationEvent {
   /** The change type result (for upsert/remove). Undefined for clear. */
   change?: ChangeType;
   /** The record after mutation (proxified). Null for DELETE, remove, and clear. */
-  record: Proxified<object> | null;
+  record: Proxified<Record<string, unknown>> | null;
   /** The previous raw data (before the change, non-proxified snapshot). */
   previous?: Record<string, unknown>;
 }
