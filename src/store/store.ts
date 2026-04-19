@@ -237,23 +237,27 @@ export class Store {
       const existingVer = (existing as Record<string, unknown>)[versionField];
       const newVer      = (rawRecord as Record<string, unknown>)[versionField];
       if (existingVer != null && newVer != null) {
-        // Try numeric comparison first (handles mixed number / numeric-string).
-        const existingNum = Number(existingVer);
-        const newNum      = Number(newVer);
-        if (!Number.isNaN(existingNum) && !Number.isNaN(newNum)) {
-          if (newNum <= existingNum) {
-            return { type: CT.NONE, record: existing };
+        try {
+          // Try numeric comparison first (handles mixed number / numeric-string).
+          const existingNum = Number(existingVer);
+          const newNum      = Number(newVer);
+          if (!Number.isNaN(existingNum) && !Number.isNaN(newNum)) {
+            if (newNum <= existingNum) {
+              return { type: CT.NONE, record: existing };
+            }
+          } else if (
+            Number.isNaN(existingNum) && Number.isNaN(newNum)
+            && typeof existingVer === 'string' && typeof newVer === 'string'
+          ) {
+            // Lexicographic fallback only when both are non-numeric strings (e.g. ISO dates).
+            if (newVer <= existingVer) {
+              return { type: CT.NONE, record: existing };
+            }
           }
-        } else if (
-          Number.isNaN(existingNum) && Number.isNaN(newNum)
-          && typeof existingVer === 'string' && typeof newVer === 'string'
-        ) {
-          // Lexicographic fallback only when both are non-numeric strings (e.g. ISO dates).
-          if (newVer <= existingVer) {
-            return { type: CT.NONE, record: existing };
-          }
+          // Otherwise types are incomparable — allow the update.
+        } catch {
+          // Coercion failed (e.g. Symbol, BigInt) — treat as incomparable, allow update.
         }
-        // Otherwise types are incomparable — allow the update.
       }
     }
 

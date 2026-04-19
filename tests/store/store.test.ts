@@ -177,6 +177,14 @@ describe('Store', () => {
     expect(store.get('user', 1)!.name).toBe('Alice V2');
   });
 
+  it('upsert does not crash when version is a Symbol (treats as incomparable)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 1 });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: Symbol('v2') });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
   it('upsert soft-deletes when record is inactive', () => {
     const store = makeStore();
     store.upsert('post', { id: 10, title: 'Hello', activo: true });
