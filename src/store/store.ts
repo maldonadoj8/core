@@ -236,7 +236,12 @@ export class Store {
     if (versionField) {
       const existingVer = (existing as Record<string, unknown>)[versionField];
       const newVer      = (rawRecord as Record<string, unknown>)[versionField];
-      if (existingVer != null && newVer != null && (newVer as number) < (existingVer as number)) {
+      if (
+        existingVer != null && newVer != null
+        && typeof existingVer === typeof newVer
+        && (typeof newVer === 'number' || typeof newVer === 'string')
+        && newVer < existingVer
+      ) {
         // Older version — ignore.
         return { type: CT.NONE, record: existing };
       }
