@@ -49,8 +49,8 @@ export class Schema {
   private _nameMap = new Map<string, string>();
 
   /**
-   * Tables that use prop-based resolution, grouped by resolverProp value.
-   * Nested map: resolverProp → resolverValue → ResolvedTable for O(1) lookup.
+   * Tables that use prop-based resolution, grouped by resolverProp (property
+   * name), then by resolverValue → ResolvedTable for O(1) lookup.
    */
   private _byResolverProp = new Map<string, Map<string | number | boolean, ResolvedTable>>();
 
@@ -99,6 +99,12 @@ export class Schema {
         if (!valueMap) {
           valueMap = new Map();
           this._byResolverProp.set(resolved.resolverProp, valueMap);
+        }
+        const existing = valueMap.get(resolved.resolverValue!);
+        if (existing) {
+          throw new Error(
+            `Table "${key}": duplicate resolverProp "${resolved.resolverProp}" + resolverValue "${String(resolved.resolverValue)}" (already used by table "${existing.name}").`,
+          );
         }
         valueMap.set(resolved.resolverValue!, resolved);
       }

@@ -138,6 +138,15 @@ describe('Schema — validation', () => {
       tables: { bad: { resolverValue: 42 } as any },
     })).toThrow('resolverValue requires resolverProp');
   });
+
+  it('throws on duplicate resolverProp + resolverValue pair', () => {
+    expect(() => defineSchema({
+      tables: {
+        tableA: { key: 'id', resolverProp: 'type', resolverValue: 'foo' },
+        tableB: { key: 'id', resolverProp: 'type', resolverValue: 'foo' },
+      },
+    })).toThrow('duplicate resolverProp "type" + resolverValue "foo"');
+  });
 });
 
 // =============================================================================

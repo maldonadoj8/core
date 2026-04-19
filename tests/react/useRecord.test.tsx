@@ -142,4 +142,41 @@ describe('useRecord', () => {
       store.upsert('user', { id: 1, name: 'Bob', version: 2 });
     }).not.toThrow();
   });
+
+  it('does not re-render when an unrelated record is inserted, removed, or updated', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 1 });
+    const renders = { value: 0 };
+    let result: any;
+
+    function Comp() {
+      result = useRecord(store, 'user', 1);
+      renders.value++;
+      return React.createElement('div', null, result?.name ?? 'none');
+    }
+
+    render(React.createElement(Comp));
+    expect(renders.value).toBe(1);
+
+    // Insert a different record.
+    act(() => {
+      store.upsert('user', { id: 2, name: 'Bob', version: 1 });
+    });
+    expect(renders.value).toBe(1);
+
+    // Update the different record.
+    act(() => {
+      store.upsert('user', { id: 2, name: 'Bob V2', version: 2 });
+    });
+    expect(renders.value).toBe(1);
+
+    // Remove the different record.
+    act(() => {
+      store.remove('user', 2);
+    });
+    expect(renders.value).toBe(1);
+
+    // Our tracked record is still intact.
+    expect(result.name).toBe('Alice');
+  });
 });
