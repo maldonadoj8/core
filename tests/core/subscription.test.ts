@@ -4,8 +4,9 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { proxify } from '../../src/core/proxy';
-import { subscribe, unsubscribe, getTrackedProps } from '../../src/core/subscription';
+import { subscribe, unsubscribe, getTrackedProps, hasSubscribers, subscriberCount } from '../../src/core/subscription';
 import { setDefaultBatchMode as setBatchMode } from '../../src/core/batch';
+import { SilasError } from '../../src/core/errors';
 
 beforeEach(() => {
   setBatchMode('sync');
@@ -246,5 +247,88 @@ describe('sub.track — property-level granularity', () => {
     // (tracked.size === 0 means "not filtering", same as no tracking)
     obj.a = 10;
     expect(cb).toHaveBeenCalledOnce();
+  });
+});
+
+// =============================================================================
+// Validation
+// =============================================================================
+
+describe('subscribe — validation', () => {
+  it('throws SilasError when proxy is not a proxified object', () => {
+    expect(() => subscribe({} as any, vi.fn())).toThrow(SilasError);
+  });
+
+  it('throws SilasError when callback is not a function', () => {
+    const obj = proxify({ x: 1 });
+    expect(() => subscribe(obj, null as any)).toThrow(SilasError);
+    expect(() => subscribe(obj, 'string' as any)).toThrow(SilasError);
+  });
+});
+
+// =============================================================================
+// Callback returning true auto-unsubscribes
+// =============================================================================
+
+describe('subscribe — callback return value', () => {
+  it('callback returning true auto-unsubscribes', () => {
+    const obj = proxify({ x: 0 });
+    const cb = vi.fn(() => true);
+    subscribe(obj, cb);
+
+    obj.x = 1;
+    expect(cb).toHaveBeenCalledOnce();
+
+    obj.x = 2;
+    expect(cb).toHaveBeenCalledOnce(); // Auto-unsubscribed.
+  });
+
+  it('callback returning false keeps subscription alive', () => {
+    const obj = proxify({ x: 0 });
+    const cb = vi.fn(() => false);
+    subscribe(obj, cb);
+
+    obj.x = 1;
+    obj.x = 2;
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+});
+
+// =============================================================================
+// hasSubscribers / subscriberCount
+// =============================================================================
+
+describe('hasSubscribers / subscriberCount', () => {
+  it('hasSubscribers returns false with no subscriptions', () => {
+    const obj = proxify({ x: 1 });
+    expect(hasSubscribers((obj as any).__proxy_id)).toBe(false);
+  });
+
+  it('hasSubscribers returns true after subscribe', () => {
+    const obj = proxify({ x: 1 });
+    subscribe(obj, vi.fn());
+    expect(hasSubscribers((obj as any).__proxy_id)).toBe(true);
+  });
+
+  it('hasSubscribers returns false after all unsubscribe', () => {
+    const obj = proxify({ x: 1 });
+    const sub = subscribe(obj, vi.fn());
+    sub.unsubscribe();
+    expect(hasSubscribers((obj as any).__proxy_id)).toBe(false);
+  });
+
+  it('subscriberCount tracks active subscriptions', () => {
+    const obj = proxify({ x: 1 });
+    expect(subscriberCount((obj as any).__proxy_id)).toBe(0);
+
+    const s1 = subscribe(obj, vi.fn());
+    const s2 = subscribe(obj, vi.fn());
+    expect(subscriberCount((obj as any).__proxy_id)).toBe(2);
+
+    s1.unsubscribe();
+    expect(subscriberCount((obj as any).__proxy_id)).toBe(1);
+
+    s2.unsubscribe();
+    expect(subscriberCount((obj as any).__proxy_id)).toBe(0);
   });
 });

@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { proxify, isProxy } from '../../src/core/proxy';
 import { subscribe } from '../../src/core/subscription';
 import { batch, setDefaultBatchMode as setBatchMode } from '../../src/core/batch';
+import { SilasError } from '../../src/core/errors';
 
 // Use sync mode so notifications are immediate (easier to test).
 beforeEach(() => {
@@ -82,6 +83,85 @@ describe('proxify', () => {
     const nested = obj.nested;
     expect(isProxy(nested)).toBe(true);
     expect(nested.value).toBe(1);
+  });
+
+  it('throws SilasError when target is null', () => {
+    expect(() => proxify(null as any)).toThrow(SilasError);
+  });
+
+  it('throws SilasError when target is undefined', () => {
+    expect(() => proxify(undefined as any)).toThrow(SilasError);
+  });
+
+  it('throws SilasError when target is a primitive', () => {
+    expect(() => proxify(42 as any)).toThrow(SilasError);
+    expect(() => proxify('string' as any)).toThrow(SilasError);
+  });
+
+  it('does not double-proxify', () => {
+    const obj = proxify({ x: 1 });
+    const double = proxify(obj);
+    expect((obj as any).__proxy_id).toBe((double as any).__proxy_id);
+  });
+
+  it('blocks __proto__ set (prototype pollution)', () => {
+    const obj = proxify<Record<string, unknown>>({ x: 1 });
+    expect(() => { (obj as any)['__proto__'] = {}; }).toThrow(SilasError);
+  });
+
+  it('blocks constructor set (prototype pollution)', () => {
+    const obj = proxify<Record<string, unknown>>({ x: 1 });
+    expect(() => { (obj as any).constructor = {}; }).toThrow(SilasError);
+  });
+
+  it('blocks prototype set (prototype pollution)', () => {
+    const obj = proxify<Record<string, unknown>>({ x: 1 });
+    expect(() => { (obj as any).prototype = {}; }).toThrow(SilasError);
+  });
+
+  it('blocks delete of reserved properties', () => {
+    const obj = proxify<Record<string, unknown>>({ x: 1 });
+    expect(() => { delete (obj as any).constructor; }).toThrow(SilasError);
+    expect(() => { delete (obj as any).prototype; }).toThrow(SilasError);
+  });
+
+  it('deep mode throws on excessive nesting depth', () => {
+    // Build a deeply nested object that exceeds MAX_DEEP_DEPTH (50).
+    let nested: any = { value: 'leaf' };
+    for (let i = 0; i < 55; i++) {
+      nested = { child: nested };
+    }
+    const obj = proxify(nested, { deep: true });
+    // Traversing deep enough should throw.
+    expect(() => {
+      let cursor: any = obj;
+      for (let i = 0; i < 55; i++) {
+        cursor = cursor.child;
+      }
+    }).toThrow(SilasError);
+  });
+
+  it('supports Symbol property keys', () => {
+    const sym = Symbol('test');
+    const obj = proxify<Record<string | symbol, unknown>>({ [sym]: 'value' });
+    expect(obj[sym]).toBe('value');
+  });
+
+  it('notifies on Symbol key mutation', () => {
+    const sym = Symbol('key');
+    const obj = proxify<Record<string | symbol, unknown>>({ [sym]: 0 });
+    const cb = vi.fn();
+    subscribe(obj, cb);
+    obj[sym] = 1;
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it('__source replacement notifies only once', () => {
+    const obj = proxify({ a: 1, b: 2 });
+    const cb = vi.fn();
+    subscribe(obj, cb);
+    (obj as any).__source = { a: 10, b: 20, c: 30 };
+    expect(cb).toHaveBeenCalledOnce();
   });
 });
 

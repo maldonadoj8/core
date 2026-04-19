@@ -92,4 +92,21 @@ describe('batch', () => {
     expect(() => batch(42 as any)).toThrow(SilasError);
     expect(() => batch('string' as any)).toThrow(SilasError);
   });
+
+  it('still flushes notifications when fn throws', () => {
+    const obj = proxify({ x: 0 });
+    const cb = vi.fn();
+    subscribe(obj, cb);
+
+    expect(() => {
+      batch(() => {
+        obj.x = 1;
+        throw new Error('boom');
+      });
+    }).toThrow('boom');
+
+    // Mutations were applied to the target and flush happened.
+    expect(obj.x).toBe(1);
+    expect(cb).toHaveBeenCalledOnce();
+  });
 });

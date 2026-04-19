@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createStore, defineSchema, ChangeType } from '../../src/store/index';
 import { subscribe } from '../../src/core/subscription';
 import { setDefaultBatchMode as setBatchMode } from '../../src/core/batch';
+import { SilasError } from '../../src/core/errors';
 
 beforeEach(() => {
   setBatchMode('sync');
@@ -276,5 +277,111 @@ describe('Store reactivity', () => {
     store.upsert('user', { id: 1, name: 'B', v: 2 });
     expect(cb).toHaveBeenCalled();
     expect(record.name).toBe('B');
+  });
+});
+
+// =============================================================================
+// Input validation
+// =============================================================================
+
+describe('Store — validation', () => {
+  function makeStore() {
+    return createStore({
+      schema: defineSchema({
+        tables: { user: { key: 'id' } },
+      }),
+    });
+  }
+
+  it('upsert throws on null record', () => {
+    const store = makeStore();
+    expect(() => store.upsert('user', null as any)).toThrow(SilasError);
+  });
+
+  it('upsert throws on array record', () => {
+    const store = makeStore();
+    expect(() => store.upsert('user', [] as any)).toThrow(SilasError);
+  });
+
+  it('upsert throws when primary key is missing', () => {
+    const store = makeStore();
+    expect(() => store.upsert('user', { name: 'Alice' })).toThrow(SilasError);
+  });
+
+  it('upsert throws when primary key is null', () => {
+    const store = makeStore();
+    expect(() => store.upsert('user', { id: null, name: 'Alice' })).toThrow(SilasError);
+  });
+
+  it('classify throws on null data', () => {
+    const store = makeStore();
+    expect(() => store.classify(null as any)).toThrow(SilasError);
+  });
+
+  it('classify throws on array data', () => {
+    const store = makeStore();
+    expect(() => store.classify([] as any)).toThrow(SilasError);
+  });
+
+  it('Schema throws on null config', () => {
+    expect(() => defineSchema(null as any)).toThrow(SilasError);
+  });
+
+  it('Schema throws on config without tables', () => {
+    expect(() => defineSchema({} as any)).toThrow(SilasError);
+  });
+});
+
+// =============================================================================
+// Edge cases
+// =============================================================================
+
+describe('Store — edge cases', () => {
+  it('soft-delete with falsy 0 is treated as deleted', () => {
+    const store = createStore({
+      schema: defineSchema({
+        tables: { item: { key: 'id', softDelete: 'activo' } },
+      }),
+    });
+    store.upsert('item', { id: 1, activo: true });
+    expect(store.count('item')).toBe(1);
+
+    // `activo: 0` is falsy → treated as soft-deleted.
+    store.upsert('item', { id: 1, activo: 0 });
+    expect(store.count('item')).toBe(0);
+  });
+
+  it('soft-delete with falsy empty string is treated as deleted', () => {
+    const store = createStore({
+      schema: defineSchema({
+        tables: { item: { key: 'id', softDelete: 'activo' } },
+      }),
+    });
+    store.upsert('item', { id: 1, activo: true });
+    store.upsert('item', { id: 1, activo: '' });
+    expect(store.count('item')).toBe(0);
+  });
+
+  it('upsert with numeric 0 as primary key succeeds', () => {
+    const store = createStore({
+      schema: defineSchema({ tables: { item: { key: 'id' } } }),
+    });
+    const result = store.upsert('item', { id: 0, name: 'zero' });
+    expect(result.type).toBe(ChangeType.INSERT);
+    expect(store.get('item', 0)).toBeDefined();
+  });
+
+  it('clear on non-existent table does not throw', () => {
+    const store = createStore({
+      schema: defineSchema({ tables: { user: { key: 'id' } } }),
+    });
+    expect(() => store.clear('nonexistent')).not.toThrow();
+  });
+
+  it('remove on non-existent record returns null', () => {
+    const store = createStore({
+      schema: defineSchema({ tables: { user: { key: 'id' } } }),
+    });
+    expect(store.remove('user', 999)).toBeNull();
   });
 });
