@@ -88,6 +88,12 @@ export class Schema {
 
       if (resolved.resolverProp == null) {
         // Name-based resolution: register external name and internal key.
+        const existingByName = this._nameMap.get(resolved.externalName);
+        if (existingByName !== undefined && existingByName !== key) {
+          throw new Error(
+            `Table "${key}": external name "${resolved.externalName}" is already registered by table "${existingByName}".`,
+          );
+        }
         this._nameMap.set(resolved.externalName, key);
         // Also register internal key → itself (for direct access).
         if (resolved.externalName !== key) {

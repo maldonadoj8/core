@@ -147,6 +147,15 @@ describe('Schema — validation', () => {
       },
     })).toThrow('duplicate resolverProp "type" + resolverValue "foo"');
   });
+
+  it('throws on duplicate external name across tables', () => {
+    expect(() => defineSchema({
+      tables: {
+        tableA: { key: 'id', name: 'shared' },
+        tableB: { key: 'id', name: 'shared' },
+      },
+    })).toThrow('external name "shared" is already registered by table "tableA"');
+  });
 });
 
 // =============================================================================

@@ -23,7 +23,7 @@ export class Collection<T extends object = Record<string, unknown>> {
 
   constructor() {
     this.proxy = proxify<CollectionState<T>>(
-      { items: [] as any, count: 0 } as any,
+      { items: [] as Proxified<T>[], count: 0 } as CollectionState<T>,
       { batch: 'sync' }, // Collections notify via the store's batch context.
     );
   }

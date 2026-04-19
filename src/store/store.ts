@@ -191,7 +191,7 @@ export class Store {
     const tableMap = this._getTable(table);
     const internalTable = this._resolveTableKey(table);
     const keyField = this.schema.getKeyField(internalTable);
-    const rawKey   = (rawRecord as any)[keyField];
+    const rawKey   = (rawRecord as Record<string, unknown>)[keyField];
 
     invariant(
       rawKey !== undefined && rawKey !== null,
@@ -234,9 +234,9 @@ export class Store {
     // Version check (if schema defines a version field).
     const versionField = this.schema.getVersionField(internalTable);
     if (versionField) {
-      const existingVer = (existing as any)[versionField];
-      const newVer      = (rawRecord as any)[versionField];
-      if (existingVer !== undefined && newVer !== undefined && newVer < existingVer) {
+      const existingVer = (existing as Record<string, unknown>)[versionField];
+      const newVer      = (rawRecord as Record<string, unknown>)[versionField];
+      if (existingVer != null && newVer != null && (newVer as number) < (existingVer as number)) {
         // Older version — ignore.
         return { type: CT.NONE, record: existing };
       }

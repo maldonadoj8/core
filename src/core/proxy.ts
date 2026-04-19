@@ -149,13 +149,13 @@ export function proxify<T extends object>(
           const existingKeys = Object.keys(obj);
           for (const key of existingKeys) {
             if (!(key in (val as object))) {
-              delete (obj as any)[key];
+              delete (obj as Record<string, unknown>)[key];
             }
           }
           // Copy all properties from the new value.
           const newKeys = Object.keys(val as object);
           for (const key of newKeys) {
-            (obj as any)[key] = (val as any)[key];
+            (obj as Record<string, unknown>)[key] = (val as Record<string, unknown>)[key];
           }
           markDirty(proxyId, undefined, effectiveMode);
         });
@@ -200,7 +200,7 @@ export function proxify<T extends object>(
       }
 
       const hadProp = prop in obj;
-      const oldVal = (obj as any)[prop];
+      const oldVal = (obj as Record<string | symbol, unknown>)[prop];
       const result = Reflect.deleteProperty(obj, prop);
 
       if (result && hadProp) {

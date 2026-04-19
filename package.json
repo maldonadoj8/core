@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Normalized, reactive data cache for multi-entity REST APIs with schema-driven classification and property-level React bindings.",
   "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
