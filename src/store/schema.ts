@@ -56,8 +56,9 @@ export class Schema {
 
   constructor(config: SchemaConfig) {
     invariant(
-      config !== null && config !== undefined && typeof config === 'object' && config.tables !== null && typeof config.tables === 'object',
-      'Schema expects a config with a non-null "tables" object.',
+      config !== null && config !== undefined && typeof config === 'object' && !Array.isArray(config)
+        && config.tables !== null && typeof config.tables === 'object' && !Array.isArray(config.tables),
+      'Schema expects a config with a non-null, non-array "tables" object.',
     );
 
     for (const [key, tc] of Object.entries(config.tables)) {

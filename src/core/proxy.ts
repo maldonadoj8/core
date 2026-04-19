@@ -12,7 +12,7 @@
 import type { ProxyId, Proxified, ProxifyOptions, BatchMode } from './types.js';
 import { markDirty, batch as batchFn } from './batch.js';
 import { recordAccess } from './subscription.js';
-import { invariant } from './errors.js';
+import { invariant, SilasError } from './errors.js';
 
 // ======================== STATE =============================================
 
@@ -84,7 +84,7 @@ export function proxify<T extends object>(
   // Depth guard for deep proxification (prevents stack overflow on circular structures).
   invariant(
     options._depth === undefined || options._depth < MAX_DEEP_DEPTH,
-    `proxify() exceeded maximum nesting depth of ${MAX_DEEP_DEPTH}. This usually indicates a circular object structure.`,
+    `proxify() exceeded maximum nesting depth of ${MAX_DEEP_DEPTH}. This can indicate a circular object structure or an extremely deep nested object.`,
   );
 
   const {
@@ -136,7 +136,9 @@ export function proxify<T extends object>(
     set(obj, prop, val, receiver) {
       // Block prototype pollution.
       if (RESERVED_PROPS.has(prop)) {
-        return true; // Silently ignore — never allow __proto__/constructor/prototype writes.
+        throw new SilasError(
+          `Setting "${String(prop)}" on a proxy is not allowed (prototype pollution protection).`,
+        );
       }
 
       // Virtual: __source setter — atomic full replacement.
@@ -192,7 +194,9 @@ export function proxify<T extends object>(
     deleteProperty(obj, prop) {
       // Block prototype pollution.
       if (RESERVED_PROPS.has(prop)) {
-        return true;
+        throw new SilasError(
+          `Deleting "${String(prop)}" on a proxy is not allowed (prototype pollution protection).`,
+        );
       }
 
       const hadProp = prop in obj;

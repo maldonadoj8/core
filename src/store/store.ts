@@ -179,8 +179,8 @@ export class Store {
     rawRecord: T,
   ): ChangeRecord<T> {
     invariant(
-      rawRecord !== null && rawRecord !== undefined && typeof rawRecord === 'object',
-      `store.upsert("${table}"): record must be a non-null object.`,
+      rawRecord !== null && rawRecord !== undefined && typeof rawRecord === 'object' && !Array.isArray(rawRecord),
+      `store.upsert("${table}"): record must be a non-null, non-array object.`,
     );
 
     const tableMap = this._getTable(table);
