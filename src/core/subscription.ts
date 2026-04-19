@@ -27,6 +27,7 @@ import type {
   Subscription,
 } from './types.js';
 import { __setFlushHandler } from './batch.js';
+import { invariant } from './errors.js';
 
 // ======================== STATE =============================================
 
@@ -125,6 +126,15 @@ export function subscribe<T extends object>(
   callback: SubscribeCallback<T>,
   options: SubscribeOptions = {},
 ): Subscription<T> {
+  invariant(
+    proxy !== null && proxy !== undefined && typeof proxy === 'object' && '__proxy_id' in proxy,
+    'subscribe() expects a proxified object as first argument. Use proxify() first.',
+  );
+  invariant(
+    typeof callback === 'function',
+    'subscribe() expects a function as second argument.',
+  );
+
   const {
     once = false,
     immediate = false,

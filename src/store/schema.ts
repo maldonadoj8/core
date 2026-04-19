@@ -14,6 +14,7 @@
 // =============================================================================
 
 import type { SchemaConfig } from './types.js';
+import { invariant } from '../core/errors.js';
 
 // ======================== RESOLVED TABLE =====================================
 
@@ -54,6 +55,11 @@ export class Schema {
   private _byResolverProp = new Map<string, ResolvedTable[]>();
 
   constructor(config: SchemaConfig) {
+    invariant(
+      config !== null && config !== undefined && typeof config === 'object' && config.tables !== null && typeof config.tables === 'object',
+      'Schema expects a config with a non-null "tables" object.',
+    );
+
     for (const [key, tc] of Object.entries(config.tables)) {
       // Validate resolverProp / resolverValue pairing.
       if (tc.resolverProp != null && tc.resolverValue == null) {

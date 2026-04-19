@@ -16,6 +16,12 @@ export interface ProxifyOptions {
   deep?: boolean;
   /** Notification batching strategy. Default: 'microtask'. */
   batch?: BatchMode;
+  /**
+   * Current nesting depth for deep proxification (internal).
+   * Used to prevent stack overflow on circular structures.
+   * @internal
+   */
+  _depth?: number;
 }
 
 /**

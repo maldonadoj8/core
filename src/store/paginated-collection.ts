@@ -15,6 +15,7 @@ import type { CursorDirection, PaginatedState } from './types.js';
 import type { Store } from './store.js';
 import { proxify } from '../core/proxy.js';
 import { subscribe } from '../core/subscription.js';
+import { invariant } from '../core/errors.js';
 import { recalculateCursors } from './cursor.js';
 
 // =============================================================================
@@ -92,6 +93,12 @@ export class PaginatedCollection<T extends object = Record<string, unknown>> {
    * @returns The updated items array.
    */
   addPage(records: T[], direction: CursorDirection): Proxified<T>[] {
+    invariant(Array.isArray(records), 'addPage() expects an array of records.');
+    invariant(
+      direction === 'ascending' || direction === 'descending',
+      `addPage() expects direction to be 'ascending' or 'descending', got "${String(direction)}".`,
+    );
+
     const unique = this._deduplicate(records);
     if (!unique.length) {
       return this.proxy.items as Proxified<T>[];
@@ -246,18 +253,21 @@ export class PaginatedCollection<T extends object = Record<string, unknown>> {
    * Removes IDs from the window that no longer exist in the store.
    */
   private _syncWithStore(): void {
-    let changed = false;
+    // Collect all IDs to remove, then filter once (O(n) instead of O(n²)).
+    const toRemove = new Set<string>();
 
-    for (const id of [...this._orderedIds]) {
+    for (const id of this._orderedIds) {
       const exists = this._store.get(this._table, id);
       if (!exists) {
-        this._idSet.delete(id);
-        this._orderedIds = this._orderedIds.filter(k => k !== id);
-        changed = true;
+        toRemove.add(id);
       }
     }
 
-    if (changed) {
+    if (toRemove.size > 0) {
+      for (const id of toRemove) {
+        this._idSet.delete(id);
+      }
+      this._orderedIds = this._orderedIds.filter(k => !toRemove.has(k));
       this._refresh();
     }
   }

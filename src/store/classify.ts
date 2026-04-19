@@ -17,6 +17,7 @@
 import type { ClassifyResult, ClassifySummary } from './types.js';
 import { ChangeType as CT } from './types.js';
 import { batch } from '../core/batch.js';
+import { invariant } from '../core/errors.js';
 import type { Store } from './store.js';
 
 // =============================================================================
@@ -33,6 +34,11 @@ export function classifyData(
   store: Store,
   data: Record<string, unknown>,
 ): ClassifyResult {
+  invariant(
+    data !== null && data !== undefined && typeof data === 'object' && !Array.isArray(data),
+    'classifyData() expects a non-null, non-array object as data.',
+  );
+
   const changes: ClassifyResult['changes'] = [];
   const summary: ClassifySummary = { inserts: 0, updates: 0, deletes: 0, skipped: 0 };
   const affectedTables = new Set<string>();
@@ -52,7 +58,7 @@ export function classifyData(
       const nameResolved = schema.resolveByName(key);
 
       for (const record of records) {
-        if (!record || typeof record !== 'object') continue;
+        if (record === null || record === undefined || typeof record !== 'object') continue;
         const rec = record as Record<string, unknown>;
 
         // 1. Try prop-based resolution first (more specific).

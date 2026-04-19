@@ -9,6 +9,9 @@
 // =============================================================================
 
 export {
+  // Errors
+  SilasError,
+  invariant,
   // Proxy
   proxify,
   isProxy,

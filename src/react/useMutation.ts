@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { UseMutationOptions, UseMutationResult } from './types.js';
+import { invariant } from '../core/errors.js';
 
 /**
  * Wrap an async function for imperative execution with state tracking.
@@ -29,6 +30,8 @@ export function useMutation<TData = unknown, TVariables = void>(
   fn: (variables: TVariables) => Promise<TData>,
   opts: UseMutationOptions<TData, TVariables> = {},
 ): UseMutationResult<TData, TVariables> {
+  invariant(typeof fn === 'function', 'useMutation() expects a function as first argument.');
+
   const [data, setData]         = useState<TData | undefined>(undefined);
   const [isLoading, setLoading] = useState(false);
   const [error, setError]       = useState<unknown>(undefined);
