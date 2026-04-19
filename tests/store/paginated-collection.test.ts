@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createStore, defineSchema } from '../../src/store/index';
 import { setDefaultBatchMode as setBatchMode } from '../../src/core/batch';
 import { subscribe } from '../../src/core/subscription';
+import { SilasError } from '../../src/core/errors';
 
 beforeEach(() => {
   setBatchMode('sync');
@@ -375,5 +376,65 @@ describe('PaginatedCollection — multiple views', () => {
 
     // But records all live in the same store table.
     expect(store.count('entrega')).toBe(4);
+  });
+});
+
+// =============================================================================
+// Validation
+// =============================================================================
+
+describe('PaginatedCollection — validation', () => {
+  it('addPage throws when records is not an array', () => {
+    const store = makeStore();
+    const pc = store.paginated('entrega');
+    expect(() => pc.addPage({} as any, 'descending')).toThrow(SilasError);
+    expect(() => pc.addPage('string' as any, 'descending')).toThrow(SilasError);
+  });
+
+  it('addPage throws on invalid direction', () => {
+    const store = makeStore();
+    const pc = store.paginated('entrega');
+    expect(() => pc.addPage([], 'invalid' as any)).toThrow(SilasError);
+  });
+});
+
+// =============================================================================
+// Edge cases
+// =============================================================================
+
+describe('PaginatedCollection — edge cases', () => {
+  it('addPage with empty array is a no-op', () => {
+    const store = makeStore();
+    const pc = store.paginated('entrega');
+    pc.addPage([], 'descending');
+    expect(pc.proxy.count).toBe(0);
+    expect(pc.proxy.items).toHaveLength(0);
+  });
+
+  it('multiple dispose calls do not throw', () => {
+    const store = makeStore();
+    const pc = store.paginated('entrega');
+    pc.dispose();
+    expect(() => pc.dispose()).not.toThrow();
+  });
+
+  it('addRecord after addPage with duplicate ID across both', () => {
+    const store = makeStore();
+    const pc = store.paginated('entrega');
+    pc.addPage([{ id: 1 }, { id: 2 }], 'descending');
+    pc.addRecord({ id: 2 }); // Duplicate — should be ignored.
+    expect(pc.proxy.count).toBe(2);
+  });
+
+  it('clear followed by addPage works correctly', () => {
+    const store = makeStore();
+    const pc = store.paginated('entrega');
+    pc.addPage([{ id: 1 }, { id: 2 }], 'descending');
+    pc.clear();
+    expect(pc.proxy.count).toBe(0);
+
+    pc.addPage([{ id: 3 }], 'descending');
+    expect(pc.proxy.count).toBe(1);
+    expect(pc.proxy.items.map((r: any) => r.id)).toEqual([3]);
   });
 });
