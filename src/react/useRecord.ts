@@ -32,18 +32,24 @@ export function useRecord<T extends object = Record<string, unknown>>(
 ): T | undefined {
   const record = useSyncExternalStore(
     (onStoreChange) => {
-      // Always subscribe to the collection so inserts/removals trigger updates.
+      // Track whether our specific record exists so we only notify React
+      // when this record is added or removed — not on unrelated changes.
+      let prevRecord = store.get<T>(table, id);
+
       const collection = store.collection(table);
       const collectionSub = subscribe(collection.proxy, () => {
-        onStoreChange();
+        const currentRecord = store.get<T>(table, id);
+        if (currentRecord !== prevRecord) {
+          prevRecord = currentRecord;
+          onStoreChange();
+        }
         return false;
       });
 
       // If the record exists now, also subscribe to its property changes.
-      const existing = store.get<T>(table, id);
       let recordSub: { unsubscribe: () => void } | null = null;
-      if (existing) {
-        recordSub = subscribe(existing, () => {
+      if (prevRecord) {
+        recordSub = subscribe(prevRecord, () => {
           onStoreChange();
           return false;
         });
