@@ -113,7 +113,7 @@ export interface StoreOptions {
 export interface MutationEvent {
   /** The type of mutation. */
   type: 'upsert' | 'remove' | 'clear';
-  /** The table affected. */
+  /** The resolved internal table key (canonical name, not the caller-provided alias). */
   table: string;
   /** The change type result (for upsert/remove). */
   change?: ChangeType;

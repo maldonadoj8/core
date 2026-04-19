@@ -108,12 +108,13 @@ export class Store {
   collection<T extends object = Record<string, unknown>>(
     table: string,
   ): Collection<T> {
-    let col = this._collections.get(table);
+    const key = this._resolveTableKey(table);
+    let col = this._collections.get(key);
     if (!col) {
       col = new Collection<T>();
-      this._collections.set(table, col);
+      this._collections.set(key, col);
       // Initialise with current records.
-      col.refresh(this.all(table));
+      col.refresh(this.all(key));
     }
     return col as Collection<T>;
   }
@@ -398,8 +399,7 @@ export class Store {
   inspect(): StoreInspection[];
   inspect(table?: string): StoreInspection | StoreInspection[] {
     if (table) {
-      const resolved = this.schema.resolveByName(table);
-      const key = resolved?.key ?? table;
+      const key = this._resolveTableKey(table);
       const map = this._tables.get(key);
       return {
         table: key,

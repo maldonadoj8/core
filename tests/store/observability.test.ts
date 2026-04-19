@@ -4,9 +4,10 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createStore, defineSchema, ChangeType } from '../../src/store/index';
-import { setDefaultBatchMode as setBatchMode, getPendingCount } from '../../src/core/batch';
+import { setDefaultBatchMode as setBatchMode, getPendingCount, flush } from '../../src/core/batch';
 import { __resetSubscriptions } from '../../src/core/subscription';
 import { __resetProxyId } from '../../src/core/proxy';
+import { proxify } from '../../src/core/proxy';
 
 beforeEach(() => {
   setBatchMode('sync');
@@ -219,6 +220,16 @@ describe('getPendingCount', () => {
     const store = makeStore();
     store.upsert('user', { id: 1, name: 'Alice', version: 1 });
     // In sync mode, flush happens immediately.
+    expect(getPendingCount()).toBe(0);
+  });
+
+  it('returns >0 in manual mode before flush, 0 after', () => {
+    setBatchMode('manual');
+    const p = proxify({ x: 1 });
+    p.x = 2;
+    expect(getPendingCount()).toBeGreaterThan(0);
+
+    flush();
     expect(getPendingCount()).toBe(0);
   });
 });
