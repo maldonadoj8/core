@@ -9,7 +9,7 @@
 // =============================================================================
 
 import type { Proxified } from '../core/types.js';
-import type { StoreOptions, ChangeRecord, ClassifyResult } from './types.js';
+import type { StoreOptions, ChangeRecord, ClassifyResult, MutationEvent, StoreInspection } from './types.js';
 import { ChangeType as CT } from './types.js';
 import { proxify, isProxy } from '../core/proxy.js';
 import { invariant } from '../core/errors.js';
@@ -36,10 +36,14 @@ export class Store {
   /** Registered paginated views per table (multiple allowed). */
   private _paginatedCollections = new Map<string, Set<PaginatedCollection<any>>>();
 
+  /** Optional mutation observer callback. */
+  private _onMutation: ((event: MutationEvent) => void) | null;
+
   constructor(options: StoreOptions) {
     this.schema = options.schema instanceof Schema
       ? options.schema
       : new Schema(options.schema);
+    this._onMutation = options.onMutation ?? null;
   }
 
   // ===========================================================================
@@ -104,12 +108,13 @@ export class Store {
   collection<T extends object = Record<string, unknown>>(
     table: string,
   ): Collection<T> {
-    let col = this._collections.get(table);
+    const key = this._resolveTableKey(table);
+    let col = this._collections.get(key);
     if (!col) {
       col = new Collection<T>();
-      this._collections.set(table, col);
+      this._collections.set(key, col);
       // Initialise with current records.
-      col.refresh(this.all(table));
+      col.refresh(this.all(key));
     }
     return col as Collection<T>;
   }
@@ -184,7 +189,8 @@ export class Store {
     );
 
     const tableMap = this._getTable(table);
-    const keyField = this.schema.getKeyField(table);
+    const internalTable = this._resolveTableKey(table);
+    const keyField = this.schema.getKeyField(internalTable);
     const rawKey   = (rawRecord as any)[keyField];
 
     invariant(
@@ -195,15 +201,17 @@ export class Store {
     const id = String(rawKey);
 
     // Soft-delete check.
-    if (this.schema.isSoftDeleted(table, rawRecord as Record<string, unknown>)) {
+    if (this.schema.isSoftDeleted(internalTable, rawRecord as Record<string, unknown>)) {
       const existing = tableMap.get(id) as Proxified<T> | undefined;
       if (existing) {
         const previous = { ...(existing as any).__source } as T;
         // Update the proxy one last time so subscribers see the deleted state.
         (existing as any).__source = rawRecord;
         tableMap.delete(id);
-        this._refreshCollection(table);
-        return { type: CT.DELETE, record: null, previous };
+        this._refreshCollection(internalTable);
+        const change: ChangeRecord<T> = { type: CT.DELETE, record: null, previous };
+        this._emitMutation({ type: 'upsert', table: internalTable, change: CT.DELETE, record: null, previous: previous as Record<string, unknown> });
+        return change;
       }
       // Didn't exist locally — nothing to do.
       return { type: CT.NONE, record: null };
@@ -217,12 +225,14 @@ export class Store {
         ? rawRecord as Proxified<T>
         : proxify(rawRecord);
       tableMap.set(id, proxy);
-      this._refreshCollection(table);
-      return { type: CT.INSERT, record: proxy };
+      this._refreshCollection(internalTable);
+      const change: ChangeRecord<T> = { type: CT.INSERT, record: proxy };
+      this._emitMutation({ type: 'upsert', table: internalTable, change: CT.INSERT, record: proxy as Proxified<Record<string, unknown>> });
+      return change;
     }
 
     // Version check (if schema defines a version field).
-    const versionField = this.schema.getVersionField(table);
+    const versionField = this.schema.getVersionField(internalTable);
     if (versionField) {
       const existingVer = (existing as any)[versionField];
       const newVer      = (rawRecord as any)[versionField];
@@ -236,7 +246,9 @@ export class Store {
     const previous = { ...(existing as any).__source } as T;
     (existing as any).__source = rawRecord;
     // No collection refresh needed — structure didn't change.
-    return { type: CT.UPDATE, record: existing, previous };
+    const change: ChangeRecord<T> = { type: CT.UPDATE, record: existing, previous };
+    this._emitMutation({ type: 'upsert', table: internalTable, change: CT.UPDATE, record: existing as Proxified<Record<string, unknown>>, previous: previous as Record<string, unknown> });
+    return change;
   }
 
   /**
@@ -247,14 +259,17 @@ export class Store {
     id: string | number,
   ): ChangeRecord<T> | null {
     const tableMap = this._getTable(table);
+    const internalTable = this._resolveTableKey(table);
     const strId    = String(id);
     const existing = tableMap.get(strId) as Proxified<T> | undefined;
     if (!existing) return null;
 
     const previous = { ...(existing as any).__source } as T;
     tableMap.delete(strId);
-    this._refreshCollection(table);
-    return { type: CT.DELETE, record: null, previous };
+    this._refreshCollection(internalTable);
+    const change: ChangeRecord<T> = { type: CT.DELETE, record: null, previous };
+    this._emitMutation({ type: 'remove', table: internalTable, change: CT.DELETE, record: null, previous: previous as Record<string, unknown> });
+    return change;
   }
 
   /**
@@ -296,14 +311,17 @@ export class Store {
    */
   clear(table?: string): void {
     if (table) {
-      this._getTable(table).clear();
-      this._refreshCollection(table);
-      this._clearPaginatedCollections(table);
+      const internalTable = this._resolveTableKey(table);
+      this._getTable(internalTable).clear();
+      this._refreshCollection(internalTable);
+      this._clearPaginatedCollections(internalTable);
+      this._emitMutation({ type: 'clear', table: internalTable, record: null });
     } else {
       for (const [key, map] of this._tables) {
         map.clear();
         this._refreshCollection(key);
         this._clearPaginatedCollections(key);
+        this._emitMutation({ type: 'clear', table: key, record: null });
       }
     }
   }
@@ -312,11 +330,15 @@ export class Store {
   // INTERNAL
   // ===========================================================================
 
+  /** Resolve an external or internal table name to the canonical internal key. */
+  private _resolveTableKey(table: string): string {
+    const resolved = this.schema.resolveByName(table);
+    return resolved?.key ?? table;
+  }
+
   /** Get or create the Map for a table. */
   private _getTable(table: string): Map<string, Proxified<any>> {
-    // Resolve through schema name map if needed.
-    const resolved = this.schema.resolveByName(table);
-    const key = resolved?.key ?? table;
+    const key = this._resolveTableKey(table);
 
     let map = this._tables.get(key);
     if (!map) {
@@ -328,8 +350,7 @@ export class Store {
 
   /** Refresh the observable collection for a table (if it exists). */
   private _refreshCollection(table: string): void {
-    const resolved = this.schema.resolveByName(table);
-    const key = resolved?.key ?? table;
+    const key = this._resolveTableKey(table);
 
     const col = this._collections.get(key);
     if (col) {
@@ -339,14 +360,57 @@ export class Store {
 
   /** Clear all paginated views for a table. */
   private _clearPaginatedCollections(table: string): void {
-    const resolved = this.schema.resolveByName(table);
-    const key = resolved?.key ?? table;
+    const key = this._resolveTableKey(table);
     const set = this._paginatedCollections.get(key);
     if (set) {
       for (const pc of set) {
         pc.clear();
       }
     }
+  }
+
+  /** Emit a mutation event (if an onMutation callback is registered). */
+  private _emitMutation(event: MutationEvent): void {
+    if (this._onMutation) {
+      try {
+        this._onMutation(event);
+      } catch {
+        // Never let observer errors break store operations.
+      }
+    }
+  }
+
+  // ===========================================================================
+  // INSPECTION API
+  // ===========================================================================
+
+  /**
+   * List all table keys that have been initialised in this store.
+   */
+  tables(): string[] {
+    return [...this._tables.keys()];
+  }
+
+  /**
+   * Inspect a single table's state for debugging.
+   * If no table is given, returns an array of inspections for all initialised tables
+   * (tables that have had at least one record inserted).
+   */
+  inspect(table: string): StoreInspection;
+  inspect(): StoreInspection[];
+  inspect(table?: string): StoreInspection | StoreInspection[] {
+    if (table) {
+      const key = this._resolveTableKey(table);
+      const map = this._tables.get(key);
+      return {
+        table: key,
+        recordCount: map?.size ?? 0,
+        recordIds: map ? [...map.keys()] : [],
+        hasCollection: this._collections.has(key),
+        paginatedViewCount: this._paginatedCollections.get(key)?.size ?? 0,
+      };
+    }
+    return [...this._tables.keys()].map(k => this.inspect(k));
   }
 }
 

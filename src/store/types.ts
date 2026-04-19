@@ -105,6 +105,36 @@ export interface SchemaConfig {
 export interface StoreOptions {
   /** Schema defining tables and their configuration. Pass a SchemaConfig or a Schema instance. */
   schema: SchemaConfig | import('./schema.js').Schema;
+  /** Optional callback invoked on every mutation (upsert, remove, clear). */
+  onMutation?: (event: MutationEvent) => void;
+}
+
+/** Describes a store mutation event for observability. */
+export interface MutationEvent {
+  /** The type of mutation. */
+  type: 'upsert' | 'remove' | 'clear';
+  /** The resolved internal table key (canonical name, not the caller-provided alias). */
+  table: string;
+  /** The change type result (for upsert/remove). Undefined for clear. */
+  change?: ChangeType;
+  /** The record after mutation (proxified). Null for DELETE, remove, and clear. */
+  record: Proxified<Record<string, unknown>> | null;
+  /** The previous raw data (before the change, non-proxified snapshot). */
+  previous?: Record<string, unknown>;
+}
+
+/** Result of `store.inspect()`. */
+export interface StoreInspection {
+  /** The internal table name. */
+  table: string;
+  /** Number of records in the table. */
+  recordCount: number;
+  /** All record IDs in the table. */
+  recordIds: string[];
+  /** Whether an observable collection exists for this table. */
+  hasCollection: boolean;
+  /** Number of paginated views registered for this table. */
+  paginatedViewCount: number;
 }
 
 // ======================== COLLECTION ========================================
