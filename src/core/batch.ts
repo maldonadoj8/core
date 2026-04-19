@@ -9,6 +9,7 @@
 // =============================================================================
 
 import type { ProxyId, BatchMode } from './types.js';
+import { invariant } from './errors.js';
 
 // ======================== STATE =============================================
 
@@ -77,6 +78,8 @@ export function isBatching(): boolean {
  * ```
  */
 export function batch(fn: () => void): void {
+  invariant(typeof fn === 'function', 'batch() expects a function argument.');
+
   _depth++;
   try {
     fn();

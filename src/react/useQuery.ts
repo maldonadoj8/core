@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { UseQueryOptions, UseQueryResult } from './types.js';
+import { invariant } from '../core/errors.js';
 
 /**
  * Execute an async function and track its status.
@@ -35,6 +36,8 @@ export function useQuery<T>(
   deps: readonly unknown[] = [],
   opts: UseQueryOptions = {},
 ): UseQueryResult<T> {
+  invariant(typeof fn === 'function', 'useQuery() expects a function as first argument.');
+
   const { enabled = true } = opts;
 
   const [data, setData]         = useState<T | undefined>(undefined);

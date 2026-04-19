@@ -51,7 +51,11 @@ export function useRecord<T extends object = Record<string, unknown>>(
 
       return () => {
         collectionSub.unsubscribe();
-        recordSub?.unsubscribe();
+        try {
+          recordSub?.unsubscribe();
+        } catch {
+          // Ensure cleanup never throws.
+        }
       };
     },
     () => store.get<T>(table, id),

@@ -6,6 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { proxify } from '../../src/core/proxy';
 import { subscribe } from '../../src/core/subscription';
 import { batch, setDefaultBatchMode as setBatchMode } from '../../src/core/batch';
+import { SilasError } from '../../src/core/errors';
 
 describe('batch', () => {
   beforeEach(() => {
@@ -83,5 +84,12 @@ describe('batch', () => {
     // Wait for microtask.
     await Promise.resolve();
     expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it('throws SilasError when called with a non-function argument', () => {
+    expect(() => batch(null as any)).toThrow(SilasError);
+    expect(() => batch(undefined as any)).toThrow(SilasError);
+    expect(() => batch(42 as any)).toThrow(SilasError);
+    expect(() => batch('string' as any)).toThrow(SilasError);
   });
 });

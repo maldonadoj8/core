@@ -12,6 +12,7 @@
 import type { ProxyId, Proxified, ProxifyOptions, BatchMode } from './types.js';
 import { markDirty, batch as batchFn } from './batch.js';
 import { recordAccess } from './subscription.js';
+import { invariant, SilasError } from './errors.js';
 
 // ======================== STATE =============================================
 
@@ -20,6 +21,12 @@ let _nextProxyId = 1;
 
 /** Cache of child proxies for deep mode (avoids re-proxifying on every get). */
 const _childProxyCache = new WeakMap<object, Proxified<any>>();
+
+/** Maximum nesting depth for deep proxification (prevents stack overflow on cycles). */
+const MAX_DEEP_DEPTH = 50;
+
+/** Reserved property names that must not be set via proxy (prototype pollution). */
+const RESERVED_PROPS = new Set<string | symbol>(['__proto__', 'constructor', 'prototype']);
 
 // ======================== HELPERS ===========================================
 
@@ -66,8 +73,19 @@ export function proxify<T extends object>(
   target: T,
   options: ProxifyOptions = {},
 ): Proxified<T> {
+  invariant(
+    target !== null && target !== undefined && typeof target === 'object',
+    'proxify() expects a non-null object as first argument.',
+  );
+
   // Don't double-proxify.
   if (isProxy(target)) return target as Proxified<T>;
+
+  // Depth guard for deep proxification (prevents stack overflow on circular structures).
+  invariant(
+    options._depth === undefined || options._depth < MAX_DEEP_DEPTH,
+    `proxify() exceeded maximum nesting depth of ${MAX_DEEP_DEPTH}. This can indicate a circular object structure or an extremely deep nested object.`,
+  );
 
   const {
     deep = false,
@@ -103,7 +121,7 @@ export function proxify<T extends object>(
       if (deep && isPlainObject(value) && !isProxy(value)) {
         let cached = _childProxyCache.get(value);
         if (!cached) {
-          cached = proxify(value, { deep, batch: batchMode });
+          cached = proxify(value, { deep, batch: batchMode, _depth: (options._depth ?? 0) + 1 });
           _childProxyCache.set(value, cached);
         }
         return cached;
@@ -116,6 +134,13 @@ export function proxify<T extends object>(
     // SET
     // ------------------------------------------------------------------
     set(obj, prop, val, receiver) {
+      // Block prototype pollution.
+      if (RESERVED_PROPS.has(prop)) {
+        throw new SilasError(
+          `Setting "${String(prop)}" on a proxy is not allowed (prototype pollution protection).`,
+        );
+      }
+
       // Virtual: __source setter — atomic full replacement.
       if (prop === '__source') {
         // Batch the entire replacement so subscribers get ONE notification.
@@ -167,6 +192,13 @@ export function proxify<T extends object>(
     // DELETE
     // ------------------------------------------------------------------
     deleteProperty(obj, prop) {
+      // Block prototype pollution.
+      if (RESERVED_PROPS.has(prop)) {
+        throw new SilasError(
+          `Deleting "${String(prop)}" on a proxy is not allowed (prototype pollution protection).`,
+        );
+      }
+
       const hadProp = prop in obj;
       const oldVal = (obj as any)[prop];
       const result = Reflect.deleteProperty(obj, prop);

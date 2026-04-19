@@ -12,6 +12,7 @@ import type { Proxified } from '../core/types.js';
 import type { StoreOptions, ChangeRecord, ClassifyResult } from './types.js';
 import { ChangeType as CT } from './types.js';
 import { proxify, isProxy } from '../core/proxy.js';
+import { invariant } from '../core/errors.js';
 import { Schema } from './schema.js';
 import { Collection } from './collection.js';
 import { PaginatedCollection } from './paginated-collection.js';
@@ -177,9 +178,21 @@ export class Store {
     table: string,
     rawRecord: T,
   ): ChangeRecord<T> {
+    invariant(
+      rawRecord !== null && rawRecord !== undefined && typeof rawRecord === 'object' && !Array.isArray(rawRecord),
+      `store.upsert("${table}"): record must be a non-null, non-array object.`,
+    );
+
     const tableMap = this._getTable(table);
     const keyField = this.schema.getKeyField(table);
-    const id       = String((rawRecord as any)[keyField]);
+    const rawKey   = (rawRecord as any)[keyField];
+
+    invariant(
+      rawKey !== undefined && rawKey !== null,
+      `store.upsert("${table}"): record is missing required primary key field "${keyField}".`,
+    );
+
+    const id = String(rawKey);
 
     // Soft-delete check.
     if (this.schema.isSoftDeleted(table, rawRecord as Record<string, unknown>)) {
@@ -271,6 +284,10 @@ export class Store {
    * ```
    */
   classify(data: Record<string, unknown>): ClassifyResult {
+    invariant(
+      data !== null && data !== undefined && typeof data === 'object' && !Array.isArray(data),
+      'store.classify() expects a non-null, non-array object.',
+    );
     return classifyData(this, data);
   }
 

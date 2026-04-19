@@ -2,6 +2,9 @@
 // @silas/core — Core barrel export
 // =============================================================================
 
+// Errors
+export { SilasError, invariant } from './errors.js';
+
 // Proxy
 export { proxify, isProxy, __resetProxyId } from './proxy.js';
 
