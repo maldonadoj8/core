@@ -129,6 +129,14 @@ describe('Store', () => {
     expect(store.get('user', 1)!.name).toBe('Alice V2');
   });
 
+  it('upsert allows update when one string is numeric and the other is not', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 'abc' });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: '10' });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
   it('upsert allows update when version types are incomparable (string vs boolean)', () => {
     const store = makeStore();
     store.upsert('user', { id: 1, name: 'Alice', version: 'abc' });

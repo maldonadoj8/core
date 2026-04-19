@@ -244,8 +244,11 @@ export class Store {
           if (newNum < existingNum) {
             return { type: CT.NONE, record: existing };
           }
-        } else if (typeof existingVer === 'string' && typeof newVer === 'string') {
-          // Lexicographic fallback for non-numeric strings (e.g. ISO dates).
+        } else if (
+          Number.isNaN(existingNum) && Number.isNaN(newNum)
+          && typeof existingVer === 'string' && typeof newVer === 'string'
+        ) {
+          // Lexicographic fallback only when both are non-numeric strings (e.g. ISO dates).
           if (newVer < existingVer) {
             return { type: CT.NONE, record: existing };
           }
