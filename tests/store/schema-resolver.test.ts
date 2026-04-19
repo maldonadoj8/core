@@ -165,6 +165,15 @@ describe('Schema — validation', () => {
       },
     })).toThrow('external name "users" is already registered by table "users"');
   });
+
+  it('throws when a table internal key collides with another table alias', () => {
+    expect(() => defineSchema({
+      tables: {
+        tableA: { key: 'id', name: 'foo' },
+        foo:    { key: 'id', name: 'bar' },
+      },
+    })).toThrow('internal key "foo" collides with an external name registered by table "tableA"');
+  });
 });
 
 // =============================================================================
