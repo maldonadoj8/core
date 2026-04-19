@@ -236,14 +236,21 @@ export class Store {
     if (versionField) {
       const existingVer = (existing as Record<string, unknown>)[versionField];
       const newVer      = (rawRecord as Record<string, unknown>)[versionField];
-      if (
-        existingVer != null && newVer != null
-        && typeof existingVer === typeof newVer
-        && (typeof newVer === 'number' || typeof newVer === 'string')
-        && newVer < existingVer
-      ) {
-        // Older version — ignore.
-        return { type: CT.NONE, record: existing };
+      if (existingVer != null && newVer != null) {
+        // Try numeric comparison first (handles mixed number / numeric-string).
+        const existingNum = Number(existingVer);
+        const newNum      = Number(newVer);
+        if (!Number.isNaN(existingNum) && !Number.isNaN(newNum)) {
+          if (newNum < existingNum) {
+            return { type: CT.NONE, record: existing };
+          }
+        } else if (typeof existingVer === 'string' && typeof newVer === 'string') {
+          // Lexicographic fallback for non-numeric strings (e.g. ISO dates).
+          if (newVer < existingVer) {
+            return { type: CT.NONE, record: existing };
+          }
+        }
+        // Otherwise types are incomparable — allow the update.
       }
     }
 
