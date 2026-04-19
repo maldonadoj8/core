@@ -97,6 +97,94 @@ describe('Store', () => {
     expect(store.get('user', 1)!.name).toBe('Alice'); // Unchanged.
   });
 
+  it('upsert skips identical numeric version', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 5 });
+    const result = store.upsert('user', { id: 1, name: 'Alice Again', version: 5 });
+    expect(result.type).toBe(ChangeType.NONE);
+    expect(store.get('user', 1)!.name).toBe('Alice');
+  });
+
+  it('upsert skips identical string version', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: '2024-06-15' });
+    const result = store.upsert('user', { id: 1, name: 'Alice Again', version: '2024-06-15' });
+    expect(result.type).toBe(ChangeType.NONE);
+    expect(store.get('user', 1)!.name).toBe('Alice');
+  });
+
+  it('upsert skips older version when types are mixed (number vs numeric string)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 5 });
+    const result = store.upsert('user', { id: 1, name: 'Old Alice', version: '3' });
+    expect(result.type).toBe(ChangeType.NONE);
+    expect(store.get('user', 1)!.name).toBe('Alice');
+  });
+
+  it('upsert accepts newer version when types are mixed (numeric string vs number)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: '2' });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: 5 });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
+  it('upsert skips older numeric-string version (numeric comparison, not lexicographic)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: '10' });
+    const result = store.upsert('user', { id: 1, name: 'Old', version: '2' });
+    expect(result.type).toBe(ChangeType.NONE);
+    expect(store.get('user', 1)!.name).toBe('Alice');
+  });
+
+  it('upsert accepts newer numeric-string version (numeric comparison, not lexicographic)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: '2' });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: '10' });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
+  it('upsert skips older version with non-numeric strings (lexicographic)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: '2024-06-15' });
+    const result = store.upsert('user', { id: 1, name: 'Old', version: '2024-06-10' });
+    expect(result.type).toBe(ChangeType.NONE);
+    expect(store.get('user', 1)!.name).toBe('Alice');
+  });
+
+  it('upsert accepts newer version with non-numeric strings (lexicographic)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: '2024-06-10' });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: '2024-06-15' });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
+  it('upsert allows update when one string is numeric and the other is not', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 'abc' });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: '10' });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
+  it('upsert allows update when version types are incomparable (string vs boolean)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 'abc' });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: true });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
+  it('upsert does not crash when version is a Symbol (treats as incomparable)', () => {
+    const store = makeStore();
+    store.upsert('user', { id: 1, name: 'Alice', version: 1 });
+    const result = store.upsert('user', { id: 1, name: 'Alice V2', version: Symbol('v2') });
+    expect(result.type).toBe(ChangeType.UPDATE);
+    expect(store.get('user', 1)!.name).toBe('Alice V2');
+  });
+
   it('upsert soft-deletes when record is inactive', () => {
     const store = makeStore();
     store.upsert('post', { id: 10, title: 'Hello', activo: true });

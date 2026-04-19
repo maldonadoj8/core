@@ -77,7 +77,7 @@ export function useProxy<T extends object>(proxy: Proxified<T>): T {
         if (tracked.size > 0) {
           let changed = false;
           for (const prop of tracked) {
-            if (!Object.is((oldSnap as any)[prop], (newSnap as any)[prop])) {
+            if (!Object.is((oldSnap as Record<string | symbol, unknown>)[prop], (newSnap as Record<string | symbol, unknown>)[prop])) {
               changed = true;
               break;
             }
@@ -131,7 +131,7 @@ function shallowSnapshot<T extends object>(proxy: Proxified<T>): T {
   const snap: Record<string, unknown> = {};
   const source = proxy.__source;
   for (const key of Object.keys(source)) {
-    snap[key] = (source as any)[key];
+    snap[key] = (source as Record<string, unknown>)[key];
   }
   return snap as T;
 }
@@ -154,7 +154,7 @@ function createTrackingProxy<T extends object>(
       if (typeof prop === 'string') {
         trackedRef.current!.add(prop);
       }
-      return (snapRef.current as any)[prop];
+      return (snapRef.current as Record<string | symbol, unknown>)[prop];
     },
     has(_, prop) {
       return prop in (snapRef.current as object);
@@ -163,7 +163,7 @@ function createTrackingProxy<T extends object>(
       return Reflect.ownKeys(snapRef.current as object);
     },
     getOwnPropertyDescriptor(_, prop) {
-      const snap = snapRef.current as any;
+      const snap = snapRef.current as Record<string | symbol, unknown>;
       if (prop in snap) {
         return {
           configurable: true,

@@ -147,6 +147,33 @@ describe('Schema — validation', () => {
       },
     })).toThrow('duplicate resolverProp "type" + resolverValue "foo"');
   });
+
+  it('throws on duplicate external name across tables', () => {
+    expect(() => defineSchema({
+      tables: {
+        tableA: { key: 'id', name: 'shared' },
+        tableB: { key: 'id', name: 'shared' },
+      },
+    })).toThrow('external name "shared" is already registered by table "tableA"');
+  });
+
+  it('throws when a table name aliases another table internal key', () => {
+    expect(() => defineSchema({
+      tables: {
+        users: { key: 'id' },
+        people: { key: 'id', name: 'users' },
+      },
+    })).toThrow('external name "users" is already registered by table "users"');
+  });
+
+  it('throws when a table internal key collides with another table alias', () => {
+    expect(() => defineSchema({
+      tables: {
+        tableA: { key: 'id', name: 'foo' },
+        foo:    { key: 'id', name: 'bar' },
+      },
+    })).toThrow('internal key "foo" collides with an external name registered by table "tableA"');
+  });
 });
 
 // =============================================================================

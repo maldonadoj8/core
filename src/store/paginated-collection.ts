@@ -62,12 +62,12 @@ export class PaginatedCollection<T extends object = Record<string, unknown>> {
 
     this.proxy = proxify<PaginatedState<T>>(
       {
-        items:       [] as any,
+        items:       [] as Proxified<T>[],
         count:       0,
         cursorStart: undefined,
         cursorEnd:   undefined,
         hasMore:     true,
-      } as any,
+      } as PaginatedState<T>,
       { batch: 'sync' },
     );
 
