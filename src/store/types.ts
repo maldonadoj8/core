@@ -117,9 +117,9 @@ export interface MutationEvent {
   table: string;
   /** The change type result (for upsert/remove). */
   change?: ChangeType;
-  /** The record after mutation (if any). */
-  record?: Record<string, unknown> | null;
-  /** The previous record data (if any). */
+  /** The record after mutation (proxified). Null if DELETE/clear. */
+  record?: Proxified | null;
+  /** The previous raw data (before the change, non-proxified snapshot). */
   previous?: Record<string, unknown>;
 }
 

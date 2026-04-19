@@ -3,7 +3,7 @@
 // =============================================================================
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createStore, defineSchema, ChangeType } from '../../src/store/index';
+import { createStore, defineSchema, ChangeType, type MutationEvent } from '../../src/store/index';
 import { setDefaultBatchMode as setBatchMode, getPendingCount, flush } from '../../src/core/batch';
 import { __resetSubscriptions } from '../../src/core/subscription';
 import { __resetProxyId } from '../../src/core/proxy';
@@ -15,7 +15,7 @@ beforeEach(() => {
   __resetProxyId();
 });
 
-function makeStore(onMutation?: (event: any) => void) {
+function makeStore(onMutation?: (event: MutationEvent) => void) {
   return createStore({
     schema: defineSchema({
       tables: {
