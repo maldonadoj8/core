@@ -156,6 +156,15 @@ describe('Schema — validation', () => {
       },
     })).toThrow('external name "shared" is already registered by table "tableA"');
   });
+
+  it('throws when a table name aliases another table internal key', () => {
+    expect(() => defineSchema({
+      tables: {
+        users: { key: 'id' },
+        people: { key: 'id', name: 'users' },
+      },
+    })).toThrow('external name "users" is already registered by table "users"');
+  });
 });
 
 // =============================================================================
