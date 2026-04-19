@@ -9,7 +9,7 @@
 // =============================================================================
 
 import type { Proxified } from '../core/types.js';
-import type { StoreOptions, ChangeRecord, ClassifyResult } from './types.js';
+import type { StoreOptions, ChangeRecord, ClassifyResult, MutationEvent, StoreInspection } from './types.js';
 import { ChangeType as CT } from './types.js';
 import { proxify, isProxy } from '../core/proxy.js';
 import { invariant } from '../core/errors.js';
@@ -36,10 +36,14 @@ export class Store {
   /** Registered paginated views per table (multiple allowed). */
   private _paginatedCollections = new Map<string, Set<PaginatedCollection<any>>>();
 
+  /** Optional mutation observer callback. */
+  private _onMutation: ((event: MutationEvent) => void) | null;
+
   constructor(options: StoreOptions) {
     this.schema = options.schema instanceof Schema
       ? options.schema
       : new Schema(options.schema);
+    this._onMutation = options.onMutation ?? null;
   }
 
   // ===========================================================================
@@ -203,7 +207,9 @@ export class Store {
         (existing as any).__source = rawRecord;
         tableMap.delete(id);
         this._refreshCollection(table);
-        return { type: CT.DELETE, record: null, previous };
+        const change: ChangeRecord<T> = { type: CT.DELETE, record: null, previous };
+        this._emitMutation({ type: 'upsert', table, change: CT.DELETE, record: null, previous: previous as Record<string, unknown> });
+        return change;
       }
       // Didn't exist locally — nothing to do.
       return { type: CT.NONE, record: null };
@@ -218,7 +224,9 @@ export class Store {
         : proxify(rawRecord);
       tableMap.set(id, proxy);
       this._refreshCollection(table);
-      return { type: CT.INSERT, record: proxy };
+      const change: ChangeRecord<T> = { type: CT.INSERT, record: proxy };
+      this._emitMutation({ type: 'upsert', table, change: CT.INSERT, record: rawRecord as unknown as Record<string, unknown> });
+      return change;
     }
 
     // Version check (if schema defines a version field).
@@ -236,7 +244,9 @@ export class Store {
     const previous = { ...(existing as any).__source } as T;
     (existing as any).__source = rawRecord;
     // No collection refresh needed — structure didn't change.
-    return { type: CT.UPDATE, record: existing, previous };
+    const change: ChangeRecord<T> = { type: CT.UPDATE, record: existing, previous };
+    this._emitMutation({ type: 'upsert', table, change: CT.UPDATE, record: rawRecord as unknown as Record<string, unknown>, previous: previous as Record<string, unknown> });
+    return change;
   }
 
   /**
@@ -254,7 +264,9 @@ export class Store {
     const previous = { ...(existing as any).__source } as T;
     tableMap.delete(strId);
     this._refreshCollection(table);
-    return { type: CT.DELETE, record: null, previous };
+    const change: ChangeRecord<T> = { type: CT.DELETE, record: null, previous };
+    this._emitMutation({ type: 'remove', table, change: CT.DELETE, record: null, previous: previous as Record<string, unknown> });
+    return change;
   }
 
   /**
@@ -299,11 +311,13 @@ export class Store {
       this._getTable(table).clear();
       this._refreshCollection(table);
       this._clearPaginatedCollections(table);
+      this._emitMutation({ type: 'clear', table });
     } else {
       for (const [key, map] of this._tables) {
         map.clear();
         this._refreshCollection(key);
         this._clearPaginatedCollections(key);
+        this._emitMutation({ type: 'clear', table: key });
       }
     }
   }
@@ -347,6 +361,50 @@ export class Store {
         pc.clear();
       }
     }
+  }
+
+  /** Emit a mutation event (if an onMutation callback is registered). */
+  private _emitMutation(event: MutationEvent): void {
+    if (this._onMutation) {
+      try {
+        this._onMutation(event);
+      } catch {
+        // Never let observer errors break store operations.
+      }
+    }
+  }
+
+  // ===========================================================================
+  // INSPECTION API
+  // ===========================================================================
+
+  /**
+   * List all table keys that have been initialised in this store.
+   */
+  tables(): string[] {
+    return [...this._tables.keys()];
+  }
+
+  /**
+   * Inspect a single table's state for debugging.
+   * If no table is given, returns an array of inspections for all tables.
+   */
+  inspect(table: string): StoreInspection;
+  inspect(): StoreInspection[];
+  inspect(table?: string): StoreInspection | StoreInspection[] {
+    if (table) {
+      const resolved = this.schema.resolveByName(table);
+      const key = resolved?.key ?? table;
+      const map = this._tables.get(key);
+      return {
+        table: key,
+        recordCount: map?.size ?? 0,
+        recordIds: map ? [...map.keys()] : [],
+        hasCollection: this._collections.has(key),
+        paginatedViewCount: this._paginatedCollections.get(key)?.size ?? 0,
+      };
+    }
+    return [...this._tables.keys()].map(k => this.inspect(k));
   }
 }
 

@@ -28,6 +28,7 @@ export {
   setDefaultBatchMode,
   setDefaultBatchMode as setBatchMode,
   getDefaultBatchMode,
+  getPendingCount,
   __setFlushHandler,
   __resetBatch,
 } from './batch.js';

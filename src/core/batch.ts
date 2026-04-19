@@ -177,6 +177,13 @@ export function __setFlushHandler(
 }
 
 /**
+ * Returns the number of proxy IDs currently pending notification.
+ */
+export function getPendingCount(): number {
+  return _pending.size;
+}
+
+/**
  * Reset all internal state. **Only for tests.**
  * @internal
  */
