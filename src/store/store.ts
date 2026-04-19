@@ -315,13 +315,13 @@ export class Store {
       this._getTable(internalTable).clear();
       this._refreshCollection(internalTable);
       this._clearPaginatedCollections(internalTable);
-      this._emitMutation({ type: 'clear', table: internalTable });
+      this._emitMutation({ type: 'clear', table: internalTable, record: null });
     } else {
       for (const [key, map] of this._tables) {
         map.clear();
         this._refreshCollection(key);
         this._clearPaginatedCollections(key);
-        this._emitMutation({ type: 'clear', table: key });
+        this._emitMutation({ type: 'clear', table: key, record: null });
       }
     }
   }

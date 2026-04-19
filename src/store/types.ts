@@ -115,10 +115,10 @@ export interface MutationEvent {
   type: 'upsert' | 'remove' | 'clear';
   /** The resolved internal table key (canonical name, not the caller-provided alias). */
   table: string;
-  /** The change type result (for upsert/remove). */
+  /** The change type result (for upsert/remove). Undefined for clear. */
   change?: ChangeType;
-  /** The record after mutation (proxified). Null if DELETE/clear. */
-  record?: Proxified | null;
+  /** The record after mutation (proxified). Null for DELETE, remove, and clear. */
+  record: Proxified<object> | null;
   /** The previous raw data (before the change, non-proxified snapshot). */
   previous?: Record<string, unknown>;
 }
