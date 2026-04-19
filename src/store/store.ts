@@ -393,7 +393,8 @@ export class Store {
 
   /**
    * Inspect a single table's state for debugging.
-   * If no table is given, returns an array of inspections for all tables.
+   * If no table is given, returns an array of inspections for all initialised tables
+   * (tables that have had at least one record inserted).
    */
   inspect(table: string): StoreInspection;
   inspect(): StoreInspection[];
