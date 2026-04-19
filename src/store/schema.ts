@@ -49,10 +49,10 @@ export class Schema {
   private _nameMap = new Map<string, string>();
 
   /**
-   * Tables that use prop-based resolution, grouped by resolverProp value.
-   * Each entry is an array of ResolvedTable instances sharing the same prop.
+   * Tables that use prop-based resolution, grouped by resolverProp (property
+   * name), then by resolverValue → ResolvedTable for O(1) lookup.
    */
-  private _byResolverProp = new Map<string, ResolvedTable[]>();
+  private _byResolverProp = new Map<string, Map<string | number | boolean, ResolvedTable>>();
 
   constructor(config: SchemaConfig) {
     invariant(
@@ -94,10 +94,19 @@ export class Schema {
           this._nameMap.set(key, key);
         }
       } else {
-        // Prop-based resolution: index by the resolver property name.
-        const list = this._byResolverProp.get(resolved.resolverProp) ?? [];
-        list.push(resolved);
-        this._byResolverProp.set(resolved.resolverProp, list);
+        // Prop-based resolution: index by resolverProp → resolverValue.
+        let valueMap = this._byResolverProp.get(resolved.resolverProp);
+        if (!valueMap) {
+          valueMap = new Map();
+          this._byResolverProp.set(resolved.resolverProp, valueMap);
+        }
+        const existing = valueMap.get(resolved.resolverValue!);
+        if (existing) {
+          throw new Error(
+            `Table "${key}": duplicate resolverProp "${resolved.resolverProp}" + resolverValue "${String(resolved.resolverValue)}" (already used by table "${existing.name}").`,
+          );
+        }
+        valueMap.set(resolved.resolverValue!, resolved);
       }
     }
   }
@@ -126,15 +135,11 @@ export class Schema {
    * Returns the first matching ResolvedTable, or undefined.
    */
   resolveByProp(record: Record<string, unknown>): ResolvedTable | undefined {
-    for (const [prop, tables] of this._byResolverProp) {
+    for (const [prop, valueMap] of this._byResolverProp) {
       const value = record[prop];
       if (value == null) continue;
-      for (const table of tables) {
-        // eslint-disable-next-line eqeqeq
-        if (value === table.resolverValue) {
-          return table;
-        }
-      }
+      const table = valueMap.get(value as string | number | boolean);
+      if (table) return table;
     }
     return undefined;
   }
