@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas-core — Subscription Manager
+// @silasdevs/core — Subscription Manager
 //
 // Manages subscriptions between consumers and proxified objects.
 // Wires into the batch system to receive flush notifications.
@@ -189,7 +189,7 @@ export function subscribe<T extends object>(
         return sub;
       }
     } catch (err) {
-      console.error('[silas/core] Error in immediate subscription callback:', err);
+      console.error('[silasdevs/core] Error in immediate subscription callback:', err);
     }
   }
 
@@ -304,7 +304,7 @@ function handleFlush(
           unsubscribe(ticket);
         }
       } catch (err) {
-        console.error('[silas/core] Error in subscription callback:', err);
+        console.error('[silasdevs/core] Error in subscription callback:', err);
       }
     }
   }

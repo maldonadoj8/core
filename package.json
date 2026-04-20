@@ -1,5 +1,5 @@
 {
-  "name": "@silas-core",
+  "name": "@silasdevs/core",
   "version": "0.1.0",
   "description": "Normalized, reactive data cache for multi-entity REST APIs with schema-driven classification and property-level React bindings.",
   "type": "module",
@@ -86,6 +86,6 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/silas/core.git"
+    "url": "https://github.com/maldonadoj8/core.git"
   }
 }

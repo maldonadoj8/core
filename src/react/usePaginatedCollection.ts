@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas-core/react — usePaginatedCollection
+// @silasdevs/core/react — usePaginatedCollection
 //
 // React hook for paginated, bidirectional data fetching over a store table.
 // Returns reactive state (items, count, cursors, hasMore) with property-level

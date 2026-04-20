@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas-core/react — useProxy
+// @silasdevs/core/react — useProxy
 //
 // The foundational React hook. Subscribes to a proxified object and triggers
 // re-renders only when properties **actually read during render** change.
