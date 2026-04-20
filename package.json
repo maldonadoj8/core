@@ -89,6 +89,9 @@
     "type": "git",
     "url": "https://github.com/maldonadoj8/core.git"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "overrides": {
     "@types/node": "$@types/node",
     "picomatch": "^4.0.4"
