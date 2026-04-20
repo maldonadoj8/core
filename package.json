@@ -90,6 +90,7 @@
     "url": "https://github.com/maldonadoj8/core.git"
   },
   "overrides": {
-    "@types/node": "$@types/node"
+    "@types/node": "$@types/node",
+    "picomatch": "^4.0.4"
   }
 }
