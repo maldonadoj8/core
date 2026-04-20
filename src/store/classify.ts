@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Classify
+// @silasdevs/core — Classify
 //
 // Takes a raw server payload (a dictionary whose keys are table names or
 // generic group names) and routes each record into the correct store table.

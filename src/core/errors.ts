@@ -1,12 +1,12 @@
 // =============================================================================
-// @silas/core — Error utilities
+// @silasdevs/core — Error utilities
 //
 // Provides a base error class and an invariant assertion for fail-fast
 // input validation at public API boundaries.
 // =============================================================================
 
 /**
- * Base error class for all @silas/core errors.
+ * Base error class for all @silasdevs/core errors.
  *
  * Consumers can catch `SilasError` to distinguish library errors from
  * other runtime exceptions.

@@ -1,6 +1,6 @@
 # CHANGELOG
 
-All notable changes to @silas/core will be documented in this file.
+All notable changes to @silasdevs/core will be documented in this file.
 
 ## Legend
 

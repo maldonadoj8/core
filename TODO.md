@@ -1,6 +1,6 @@
 # TODO
 
-This document tracks planned features, improvements, and known issues for @silas/core.
+This document tracks planned features, improvements, and known issues for @silasdevs/core.
 
 ## Legend
 

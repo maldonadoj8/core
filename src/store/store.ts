@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Reactive Store
+// @silasdevs/core — Reactive Store
 //
 // In-memory database that holds proxified records grouped by table.
 // Each record is individually proxified, so subscribers can observe
@@ -439,7 +439,7 @@ export class Store {
  * Create a new Store instance.
  *
  * ```ts
- * import { createStore, defineSchema } from '@silas/core/store';
+ * import { createStore, defineSchema } from '@silasdevs/core/store';
  *
  * const store = createStore({
  *   schema: defineSchema({

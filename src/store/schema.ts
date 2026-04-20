@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Schema Definition
+// @silasdevs/core — Schema Definition
 //
 // Provides a type-safe way to define table structures for the Store.
 //

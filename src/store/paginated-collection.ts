@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Paginated Collection
+// @silasdevs/core — Paginated Collection
 //
 // A reactive, store-aware windowed view over a table.
 // Records live in the Store (single source of truth). This class tracks

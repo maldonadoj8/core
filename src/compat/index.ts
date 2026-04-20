@@ -1,8 +1,8 @@
 // =============================================================================
-// @silas/core/compat — Legacy obs.js compatibility layer
+// @silasdevs/core/compat — Legacy obs.js compatibility layer
 //
 // Maps the original WeeiiWebSDK obs.js API (proxify, sub, desub, al_editar)
-// to the new @silas/core primitives. Import this module when migrating an
+// to the new @silasdevs/core primitives. Import this module when migrating an
 // existing project incrementally.
 //
 // Differences from the original:
