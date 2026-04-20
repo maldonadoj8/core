@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core/react — useRecord
+// @silas-core/react — useRecord
 //
 // Reads a single record from a Store by table + id and re-renders when
 // that record's tracked properties change.

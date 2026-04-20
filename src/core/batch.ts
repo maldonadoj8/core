@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Batching System
+// @silas-core — Batching System
 //
 // Groups multiple proxy mutations into a single notification round.
 // Three modes:

@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core/react — useMutation
+// @silas-core/react — useMutation
 //
 // Imperative mutation hook inspired by React Query / TanStack Query.
 // Wraps an async function with loading / error / data / callback states.

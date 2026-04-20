@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Observable Collection
+// @silas-core — Observable Collection
 //
 // A reactive wrapper around the list of records in a table.
 // Subscribing to a collection notifies on INSERT / DELETE (structural changes).

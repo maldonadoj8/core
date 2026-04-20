@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Reactive Proxy
+// @silas-core — Reactive Proxy
 //
 // Creates ES Proxy wrappers around plain objects that:
 //   - Track property reads (for granular subscription notifications).
@@ -53,7 +53,7 @@ export function isProxy(value: unknown): value is Proxified {
  * Create a reactive proxy around a plain object.
  *
  * ```ts
- * import { proxify } from '@silas/core';
+ * import { proxify } from '@silas-core';
  *
  * const state = proxify({ count: 0, name: 'Alice' });
  *

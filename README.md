@@ -1,4 +1,4 @@
-# @silas/core
+# @silas-core
 
 Normalized, reactive data cache for REST APIs.
 
@@ -22,7 +22,7 @@ Designed for backends that return heterogeneous payloads where records from diff
 ## Installation
 
 ```bash
-npm install @silas/core
+npm install @silas-core
 ```
 
 React hooks require React 18+:
@@ -36,7 +36,7 @@ npm install react@^18
 ### Core — Reactive Proxy
 
 ```ts
-import { proxify, subscribe, batch } from '@silas/core';
+import { proxify, subscribe, batch } from '@silas-core';
 
 const user = proxify({ name: 'Alice', age: 30 });
 
@@ -59,7 +59,7 @@ batch(() => {
 Every subscription has a `track(fn)` method. Property reads inside `fn` are recorded so the subscription **only fires when those specific properties change**.
 
 ```ts
-import { proxify, subscribe } from '@silas/core';
+import { proxify, subscribe } from '@silas-core';
 
 const user = proxify({ name: 'Alice', email: 'alice@test.com', age: 30 });
 
@@ -119,7 +119,7 @@ state.user.address.city = 'LA'; // Triggers notification on the root proxy.
 ### Store — In-Memory Database
 
 ```ts
-import { createStore, defineSchema } from '@silas/core/store';
+import { createStore, defineSchema } from '@silas-core/store';
 
 const store = createStore({
   schema: defineSchema({
@@ -242,7 +242,7 @@ store.classify({
 Cursor-based, bidirectional windowed views over store tables. Multiple independent paginated views can exist for the same table (e.g., two scroll panels).
 
 ```ts
-import { createStore, defineSchema } from '@silas/core/store';
+import { createStore, defineSchema } from '@silas-core/store';
 
 const store = createStore({
   schema: defineSchema({
@@ -273,7 +273,7 @@ store.disposePaginated(page);
 Cursor utilities are also available as pure functions:
 
 ```ts
-import { recalculateCursors, cursorFor } from '@silas/core/store';
+import { recalculateCursors, cursorFor } from '@silas-core/store';
 
 const boundaries = recalculateCursors(records, 'id');
 const cursor = cursorFor(boundaries, 'descending'); // → boundaries.end
@@ -286,7 +286,7 @@ const cursor = cursorFor(boundaries, 'descending'); // → boundaries.end
 `useProxy` returns a **tracking snapshot**. Only the properties your component reads during render are tracked — mutations to other properties are silently ignored.
 
 ```tsx
-import { useProxy } from '@silas/core/react';
+import { useProxy } from '@silas-core/react';
 
 function UserCard({ user }: { user: Proxified<User> }) {
   const snap = useProxy(user);
@@ -312,7 +312,7 @@ Under the hood:
 #### `useRecord` — Single Record from Store
 
 ```tsx
-import { useRecord } from '@silas/core/react';
+import { useRecord } from '@silas-core/react';
 
 function UserProfile({ store, userId }: Props) {
   const user = useRecord<User>(store, 'user', userId);
@@ -324,7 +324,7 @@ function UserProfile({ store, userId }: Props) {
 #### `useCollection` — Table Subscription
 
 ```tsx
-import { useCollection } from '@silas/core/react';
+import { useCollection } from '@silas-core/react';
 
 function UserList({ store }: Props) {
   const { items, count } = useCollection<User>(store, 'user');
@@ -340,7 +340,7 @@ function UserList({ store }: Props) {
 #### `usePaginatedCollection` — Paginated Table View
 
 ```tsx
-import { usePaginatedCollection } from '@silas/core/react';
+import { usePaginatedCollection } from '@silas-core/react';
 
 function EntregaList({ store }: Props) {
   const {
@@ -364,7 +364,7 @@ Returns reactive state (`items`, `count`, `cursorStart`, `cursorEnd`, `hasMore`)
 #### `useQuery` — Async Data Fetching
 
 ```tsx
-import { useQuery } from '@silas/core/react';
+import { useQuery } from '@silas-core/react';
 
 function Users({ api }: Props) {
   const { data, isLoading, error, refetch } = useQuery(
@@ -381,7 +381,7 @@ function Users({ api }: Props) {
 #### `useMutation` — Imperative Async Mutations
 
 ```tsx
-import { useMutation } from '@silas/core/react';
+import { useMutation } from '@silas-core/react';
 
 function CreateUser({ api }: Props) {
   const { mutate, isLoading } = useMutation(
@@ -402,7 +402,7 @@ function CreateUser({ api }: Props) {
 Drop-in replacement for the `obs.js` module. Forces `sync` batch mode for backwards compatibility.
 
 ```ts
-import Obs from '@silas/core/compat';
+import Obs from '@silas-core/compat';
 
 const obj = Obs.proxify({ count: 0 });
 const ticket = Obs.sub(obj, () => console.log('changed'), 'counter', false, false);
@@ -414,10 +414,10 @@ Obs.desub(ticket);
 
 | Import               | Description                                    |
 |----------------------|------------------------------------------------|
-| `@silas/core`        | Core proxy + subscription + batching           |
-| `@silas/core/store`  | Store, Schema, Collection, PaginatedCollection, classify, cursor |
-| `@silas/core/react`  | React hooks                                    |
-| `@silas/core/compat` | Legacy obs.js compatibility                    |
+| `@silas-core`        | Core proxy + subscription + batching           |
+| `@silas-core/store`  | Store, Schema, Collection, PaginatedCollection, classify, cursor |
+| `@silas-core/react`  | React hooks                                    |
+| `@silas-core/compat` | Legacy obs.js compatibility                    |
 
 ## Batch Modes
 
@@ -428,7 +428,7 @@ Obs.desub(ticket);
 | `manual`    | Only notifies inside explicit `batch()` calls    |
 
 ```ts
-import { setBatchMode } from '@silas/core';
+import { setBatchMode } from '@silas-core';
 
 setBatchMode('sync');       // Immediate notifications
 setBatchMode('manual');     // Only explicit batch()
@@ -611,6 +611,39 @@ The object returned by `subscribe()`:
 | `UseQueryResult<T>`           | `{ data, isLoading, error, refetch }`                |
 | `UseMutationResult<T, V>`     | `{ mutate, mutateAsync, data, isLoading, error, reset }` |
 | `UsePaginatedCollectionResult<T>` | Full return type of `usePaginatedCollection`     |
+
+## Contributing
+
+### Development
+
+```bash
+npm ci              # Install dependencies
+npm run typecheck   # Type-check with tsc
+npm run lint        # Lint with ESLint
+npm run test        # Run tests with vitest
+npm run build       # Build with tsup
+```
+
+### Adding a changeset
+
+This project uses [Changesets](https://github.com/changesets/changesets) for versioning and changelog generation. When your PR includes a user-facing change, add a changeset:
+
+```bash
+npm run changeset
+```
+
+Follow the prompts to select the bump type (`patch`, `minor`, `major`) and describe the change. This creates a markdown file in `.changeset/` — commit it with your PR.
+
+### Release flow
+
+1. PRs with changesets merge into `main`.
+2. The release workflow detects pending changesets and opens (or updates) a **Version PR** that bumps `package.json`, updates `CHANGELOG.md`, and removes consumed changeset files.
+3. When the Version PR is merged, the release workflow publishes to npm and creates a GitHub release with the corresponding git tag.
+
+### Manual setup required (repo admin)
+
+- **Branch protection**: Require the `CI` workflow to pass before merging to `main`.
+- **npm token**: Add an npm automation token as the `NPM_TOKEN` repository secret (Settings → Secrets → Actions).
 
 ## License
 

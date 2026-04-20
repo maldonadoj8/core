@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core/react — useCollection
+// @silas-core/react — useCollection
 //
 // Subscribes to a store's observable collection for a table.
 // Re-renders when the list's structure changes (insert/delete) or

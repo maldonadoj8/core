@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Cursor Utilities
+// @silas-core — Cursor Utilities
 //
 // Pure functions for calculating pagination cursor boundaries.
 // A cursor tracks the start/end primary-key values of the current window

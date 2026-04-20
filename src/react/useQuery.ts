@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core/react — useQuery
+// @silas-core/react — useQuery
 //
 // Async data fetching hook inspired by React Query / TanStack Query.
 // Calls an async function and tracks loading / error / data states.

@@ -1,5 +1,5 @@
 // =============================================================================
-// @silas/core — Subscription Manager
+// @silas-core — Subscription Manager
 //
 // Manages subscriptions between consumers and proxified objects.
 // Wires into the batch system to receive flush notifications.
