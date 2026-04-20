@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## 0.3.0
+
+### Minor Changes
+
+- [#10](https://github.com/maldonadoj8/core/pull/10) [`ee15a6d`](https://github.com/maldonadoj8/core/commit/ee15a6d6d737e277fcf848644a0f34cfb43e1f60) Thanks [@maldonadoj8](https://github.com/maldonadoj8)! - Add runtime validation, performance optimizations, observability APIs, and CI/CD automation
+
+  - Runtime safety: input validation, prototype pollution guards, cycle detection, error classes
+  - Performance: O(n) schema resolution, paginated collection fix, useRecord optimization
+  - Observability: `getPendingCount()`, `store.tables()`, `store.inspect()`, `onMutation` callback
+  - Package: ESLint, Changesets, CI/CD workflows, public npm publishing
+
 ## 0.2.0
 
 ### Minor Changes
