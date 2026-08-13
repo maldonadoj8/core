@@ -9,6 +9,7 @@ Designed for backends that return heterogeneous payloads where records from diff
 ## Features
 
 - **Proxy-based reactivity** — wrap any object with `proxify()` and subscribe to changes.
+- **Deep proxy propagation** — nested writes notify every ancestor proxy.
 - **Property-level tracking** — components only re-render when the specific properties they read change, not on every mutation.
 - **Scoped trackers** — each subscription owns an isolated `Tracker`, safe for concurrent renders, nesting, and aborted renders.
 - **Two-layer granular filtering** — `useProxy` syncs tracked properties into the subscription system via `setTrackedProps`, enabling the flush handler to skip irrelevant callbacks at the notification level, with snapshot comparison as a fallback for the first mutation.
@@ -237,6 +238,10 @@ store.classify({
 
 > **Note:** `classify` expects a **flat** `Record<string, unknown>` — each top-level key maps to an array of records.  If the server response is nested (e.g., `respuesta.datos`), unwrap it before classifying: `store.classify(respuesta.datos)`.
 
+#### Strict Classification
+
+Set `strict: true` in the schema to make it an enforcement boundary. Every record must resolve through a prop resolver or a name-based table; unknown response keys, unmatched resolver values, and invalid record entries throw before the store is mutated. The default remains permissive and retains the dynamic alphanumeric-key fallback.
+
 ### Paginated Collections
 
 Cursor-based, bidirectional windowed views over store tables. Multiple independent paginated views can exist for the same table (e.g., two scroll panels).
@@ -368,7 +373,7 @@ import { useQuery } from '@silasdevs/core/react';
 
 function Users({ api }: Props) {
   const { data, isLoading, error, refetch } = useQuery(
-    () => api.fetchUsers(),
+    (signal) => api.fetchUsers({ signal }),
     [/* deps */],
   );
 
@@ -377,6 +382,8 @@ function Users({ api }: Props) {
   return <UserList users={data} />;
 }
 ```
+
+`useQuery` passes an `AbortSignal` to every query function and aborts superseded, disabled, and unmounted requests. Query functions may ignore the signal; a generation guard still ignores stale results from transports that do not support cancellation.
 
 #### `useMutation` — Imperative Async Mutations
 
@@ -397,9 +404,11 @@ function CreateUser({ api }: Props) {
 }
 ```
 
+When mutations overlap, the most recently invoked mutation owns the visible `data`, `error`, and `isLoading` state. Every mutation still resolves or rejects its own promise and runs its lifecycle callbacks.
+
 ### Compat — Legacy WeeiiWebSDK API
 
-Drop-in replacement for the `obs.js` module. Forces `sync` batch mode for backwards compatibility.
+Drop-in replacement for the `obs.js` module. Proxies created through this entry point use synchronous notifications for backwards compatibility without changing the global core batch mode.
 
 ```ts
 import Obs from '@silasdevs/core/compat';
@@ -480,7 +489,7 @@ store.classify(payload)
                  ├─ 2. Name-based: schema.resolveByName(key)
                  │      ├─ Table registered with that name → route
                  │      └─ Not found → continue
-                 └─ 3. Alphanumeric key fallback:
+                 └─ 3. Alphanumeric key fallback (non-strict only):
                         /^[a-z_][a-z0-9_]*$/i → ad-hoc table with key name
 ```
 
@@ -494,7 +503,7 @@ Every proxified object exposes virtual properties intercepted by the proxy handl
 | `__source`     | `object`  | Direct access to the underlying target (bypasses proxy) |
 | `__is_proxy`   | `true`    | Guard for `isProxy()` checks        |
 
-Setting `__source` performs an **atomic full replacement** — all properties are updated in a single batch.
+Setting `__source` performs an **atomic full replacement** — all properties are updated in a single batch. Reserved keys (`__proto__`, `constructor`, and `prototype`) are ignored during replacement.
 
 ## API Reference
 
@@ -574,6 +583,8 @@ The object returned by `subscribe()`:
 | `store.paginated(table)`       | Create a new paginated view over a table          |
 | `store.disposePaginated(pc)`   | Dispose a paginated view                          |
 | `store.clear(table?)`          | Clear one table or all tables                     |
+
+`createPaginated()` and `activatePaginated()` are internal lifecycle helpers used by the React binding; use `store.paginated()` for application code.
 
 ### React Hooks
 

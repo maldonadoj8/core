@@ -59,7 +59,7 @@ export function useProxy<T extends object>(proxy: Proxified<T>): T {
         subRef.current.unsubscribe();
       }
 
-      const sub = subscribe(proxy, () => {
+      const sub = subscribe(proxy, (_value, subscription) => {
         const oldSnap = snapRef.current;
         const newSnap = shallowSnapshot(proxy);
         const tracked = trackedRef.current;
@@ -77,7 +77,10 @@ export function useProxy<T extends object>(proxy: Proxified<T>): T {
         if (tracked.size > 0) {
           let changed = false;
           for (const prop of tracked) {
-            if (!Object.is((oldSnap as Record<string | symbol, unknown>)[prop], (newSnap as Record<string | symbol, unknown>)[prop])) {
+            if (
+              subscription.changedProps?.has(prop)
+              || !Object.is((oldSnap as Record<string | symbol, unknown>)[prop], (newSnap as Record<string | symbol, unknown>)[prop])
+            ) {
               changed = true;
               break;
             }

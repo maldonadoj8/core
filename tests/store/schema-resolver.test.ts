@@ -387,3 +387,58 @@ describe('Store.classify — mixed resolution', () => {
     expect(store.count('entrega')).toBe(0);
   });
 });
+
+// =============================================================================
+// Classify — strict mode
+// =============================================================================
+
+describe('Store.classify — strict mode', () => {
+  it('classifies valid name-based and prop-based records', () => {
+    const store = createStore({
+      schema: defineSchema({
+        strict: true,
+        tables: {
+          user: { key: 'id' },
+          post: { key: 'id', resolverProp: 'kind', resolverValue: 'post' },
+        },
+      }),
+    });
+
+    store.classify({ user: [{ id: 1 }], data: [{ id: 2, kind: 'post' }] });
+
+    expect(store.get('user', 1)).toBeDefined();
+    expect(store.get('post', 2)).toBeDefined();
+  });
+
+  it('rejects unknown keys and unmatched resolver values without partial writes', () => {
+    const store = createStore({
+      schema: defineSchema({
+        strict: true,
+        tables: { user: { key: 'id' } },
+      }),
+    });
+
+    expect(() => store.classify({ user: [{ id: 1 }], typo: [{ id: 2 }] })).toThrow('Unable to classify "typo"[0]');
+    expect(store.count('user')).toBe(0);
+    expect(store.count('typo')).toBe(0);
+  });
+
+  it('rejects invalid record entries in strict mode', () => {
+    const store = createStore({
+      schema: defineSchema({ strict: true, tables: { user: { key: 'id' } } }),
+    });
+
+    expect(() => store.classify({ user: [{ id: 1 }, null] })).toThrow('Unable to classify "user"[1]');
+    expect(store.count('user')).toBe(0);
+  });
+
+  it('retains dynamic table fallback when strict mode is omitted', () => {
+    const store = createStore({
+      schema: defineSchema({ tables: { user: { key: 'id' } } }),
+    });
+
+    store.classify({ dynamic_table: [{ id: 1 }] });
+
+    expect(store.get('dynamic_table', 1)).toBeDefined();
+  });
+});

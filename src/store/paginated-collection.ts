@@ -43,6 +43,11 @@ export class PaginatedCollection<T extends object = Record<string, unknown>> {
   /** Internal table key (resolved through schema). */
   private _table: string;
 
+  /** @internal Canonical table key used by Store registration. */
+  get table(): string {
+    return this._table;
+  }
+
   /** Primary key field for this table. */
   private _keyField: string;
 
@@ -71,9 +76,15 @@ export class PaginatedCollection<T extends object = Record<string, unknown>> {
       { batch: 'sync' },
     );
 
+  }
+
+  /** @internal Activate store synchronization for this view. */
+  activate(): void {
+    if (this._collectionSub) return;
+
     // Subscribe to the store's collection so we can detect external removals
     // (e.g. a record soft-deleted by another classify() call).
-    const col = store.collection(table);
+    const col = this._store.collection(this._table);
     this._collectionSub = subscribe(col.proxy, () => {
       this._syncWithStore();
       return false; // Keep subscription alive.
@@ -174,10 +185,7 @@ export class PaginatedCollection<T extends object = Record<string, unknown>> {
     };
   }
 
-  /**
-   * Unsubscribe from the store's collection. Call this when the paginated
-   * view is no longer needed (e.g. component unmount).
-   */
+  /** Unsubscribe from the store's collection. */
   dispose(): void {
     this._collectionSub?.unsubscribe();
     this._collectionSub = null;
@@ -191,9 +199,12 @@ export class PaginatedCollection<T extends object = Record<string, unknown>> {
    * Filter out records whose primary key is already in the window.
    */
   private _deduplicate(records: T[]): T[] {
+    const seen = new Set(this._idSet);
     return records.filter(record => {
       const key = String((record as Record<string, unknown>)[this._keyField]);
-      return !this._idSet.has(key);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
   }
 

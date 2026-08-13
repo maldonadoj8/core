@@ -42,6 +42,9 @@ export class Schema {
   /** Resolved tables keyed by internal name. */
   private _tables = new Map<string, ResolvedTable>();
 
+  /** Whether classification rejects unclassified data. */
+  readonly strict: boolean;
+
   /**
    * Reverse lookup: external name → internal table names.
    * Only includes tables WITHOUT `resolverProp` (name-based resolution).
@@ -60,6 +63,7 @@ export class Schema {
         && config.tables !== null && typeof config.tables === 'object' && !Array.isArray(config.tables),
       'Schema expects a config with a non-null, non-array "tables" object.',
     );
+    this.strict = config.strict ?? false;
 
     for (const [key, tc] of Object.entries(config.tables)) {
       // Validate resolverProp / resolverValue pairing.

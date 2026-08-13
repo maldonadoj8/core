@@ -17,7 +17,7 @@
 import type { ClassifyResult, ClassifySummary } from './types.js';
 import { ChangeType as CT } from './types.js';
 import { batch } from '../core/batch.js';
-import { invariant } from '../core/errors.js';
+import { invariant, SilasError } from '../core/errors.js';
 import type { Store } from './store.js';
 
 // =============================================================================
@@ -44,63 +44,86 @@ export function classifyData(
   const affectedTables = new Set<string>();
   const schema = store.schema;
   const hasPropResolvers = schema.hasPropResolvers();
+  const resolvedRecords: Array<{ table: string; record: Record<string, unknown> }> = [];
+
+  for (const key of Object.keys(data)) {
+    const rawValue = data[key];
+
+    // Normalise to array.
+    const records = Array.isArray(rawValue)
+      ? rawValue
+      : (rawValue && typeof rawValue === 'object' ? [rawValue] : []);
+
+    // Pre-resolve name-based target for this key (may be undefined).
+    const nameResolved = schema.resolveByName(key);
+    if (schema.strict && !Array.isArray(rawValue) && (!rawValue || typeof rawValue !== 'object')) {
+      throw new SilasError(`Unable to classify "${key}": expected an object or array of objects.`);
+    }
+
+    if (schema.strict && records.length === 0 && !nameResolved) {
+      throw new SilasError(`Unable to classify "${key}": no schema table matches this response key.`);
+    }
+
+    for (let index = 0; index < records.length; index++) {
+      const record = records[index];
+      if (record === null || record === undefined || typeof record !== 'object' || Array.isArray(record)) {
+        if (schema.strict) {
+          throw new SilasError(`Unable to classify "${key}"[${index}]: expected a record object.`);
+        }
+        continue;
+      }
+      const rec = record as Record<string, unknown>;
+
+      // 1. Try prop-based resolution first (more specific).
+      let tableName: string | null = null;
+
+      if (hasPropResolvers) {
+        const propResolved = schema.resolveByProp(rec);
+        if (propResolved) {
+          tableName = propResolved.name;
+        }
+      }
+
+      // 2. Fall back to name-based resolution.
+      if (!tableName && nameResolved) {
+        tableName = nameResolved.key;
+      }
+
+      // 3. Fallback for unregistered but plausible table names.
+      if (!schema.strict && !tableName && /^[a-z_][a-z0-9_]*$/i.test(key)) {
+        tableName = key;
+      }
+
+      if (!tableName) {
+        if (schema.strict) {
+          throw new SilasError(`Unable to classify "${key}"[${index}]: no schema table matched this record.`);
+        }
+        continue;
+      }
+
+      resolvedRecords.push({ table: tableName, record: rec });
+    }
+  }
 
   batch(() => {
-    for (const key of Object.keys(data)) {
-      const rawValue = data[key];
+    for (const { table, record } of resolvedRecords) {
+      const change = store.upsert(table, record);
+      changes.push({ table, ...change });
+      affectedTables.add(table);
 
-      // Normalise to array.
-      const records = Array.isArray(rawValue)
-        ? rawValue
-        : (rawValue && typeof rawValue === 'object' ? [rawValue] : []);
-
-      // Pre-resolve name-based target for this key (may be undefined).
-      const nameResolved = schema.resolveByName(key);
-
-      for (const record of records) {
-        if (record === null || record === undefined || typeof record !== 'object') continue;
-        const rec = record as Record<string, unknown>;
-
-        // 1. Try prop-based resolution first (more specific).
-        let tableName: string | null = null;
-
-        if (hasPropResolvers) {
-          const propResolved = schema.resolveByProp(rec);
-          if (propResolved) {
-            tableName = propResolved.name;
-          }
-        }
-
-        // 2. Fall back to name-based resolution.
-        if (!tableName && nameResolved) {
-          tableName = nameResolved.key;
-        }
-
-        // 3. Fallback for unregistered but plausible table names.
-        if (!tableName && /^[a-z_][a-z0-9_]*$/i.test(key)) {
-          tableName = key;
-        }
-
-        if (!tableName) continue;
-
-        const change = store.upsert(tableName, rec);
-        changes.push({ table: tableName, ...change });
-        affectedTables.add(tableName);
-
-        switch (change.type) {
-          case CT.INSERT:
-            summary.inserts++;
-            break;
-          case CT.UPDATE:
-            summary.updates++;
-            break;
-          case CT.DELETE:
-            summary.deletes++;
-            break;
-          case CT.NONE:
-            summary.skipped++;
-            break;
-        }
+      switch (change.type) {
+        case CT.INSERT:
+          summary.inserts++;
+          break;
+        case CT.UPDATE:
+          summary.updates++;
+          break;
+        case CT.DELETE:
+          summary.deletes++;
+          break;
+        case CT.NONE:
+          summary.skipped++;
+          break;
       }
     }
   });

@@ -11,6 +11,11 @@ import Obs, {
   SUBS,
   OBJ_TICKETS,
 } from '../../src/compat/index';
+import {
+  proxify as coreProxify,
+  setDefaultBatchMode,
+  subscribe as coreSubscribe,
+} from '../../src/core/index';
 
 describe('compat layer', () => {
   it('proxify creates a reactive proxy', () => {
@@ -57,6 +62,23 @@ describe('compat layer', () => {
 
     obj.value = 1;
     expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it('keeps sync batching local to compat-created proxies', () => {
+    setDefaultBatchMode('manual');
+    const compatProxy = proxify({ value: 0 });
+    const coreProxy = coreProxify({ value: 0 });
+    const compatCallback = vi.fn();
+    const coreCallback = vi.fn();
+    sub(compatProxy, compatCallback);
+    coreSubscribe(coreProxy, coreCallback);
+
+    compatProxy.value = 1;
+    coreProxy.value = 1;
+
+    expect(compatCallback).toHaveBeenCalledOnce();
+    expect(coreCallback).not.toHaveBeenCalled();
+    setDefaultBatchMode('microtask');
   });
 
   it('desub() removes the subscription', () => {

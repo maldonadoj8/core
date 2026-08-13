@@ -22,11 +22,20 @@ let _nextProxyId = 1;
 /** Cache of child proxies for deep mode (avoids re-proxifying on every get). */
 const _childProxyCache = new WeakMap<object, Proxified<any>>();
 
+/** Parent links for deep child proxies, used to propagate nested mutations. */
+const _parentLinks = new WeakMap<object, Set<ParentLink>>();
+
 /** Maximum nesting depth for deep proxification (prevents stack overflow on cycles). */
 const MAX_DEEP_DEPTH = 50;
 
 /** Reserved property names that must not be set via proxy (prototype pollution). */
 const RESERVED_PROPS = new Set<string | symbol>(['__proto__', 'constructor', 'prototype']);
+
+interface ParentLink {
+  parent: Proxified<any>;
+  prop: string | symbol;
+  mode: BatchMode | undefined;
+}
 
 // ======================== HELPERS ===========================================
 
@@ -35,6 +44,51 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   if (value === null || typeof value !== 'object') return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
+}
+
+function linkParent(
+  child: Proxified<any>,
+  parent: Proxified<any>,
+  prop: string | symbol,
+  mode: BatchMode | undefined,
+): void {
+  let links = _parentLinks.get(child);
+  if (!links) {
+    links = new Set();
+    _parentLinks.set(child, links);
+  }
+  for (const link of links) {
+    if (link.parent === parent && link.prop === prop) return;
+  }
+  links.add({ parent, prop, mode });
+}
+
+function unlinkParent(child: Proxified<any>, parent: Proxified<any>, prop: string | symbol): void {
+  const links = _parentLinks.get(child);
+  if (!links) return;
+  for (const link of links) {
+    if (link.parent === parent && link.prop === prop) {
+      links.delete(link);
+    }
+  }
+}
+
+function notifyChange(
+  proxy: Proxified<any>,
+  proxyId: ProxyId,
+  prop: string | symbol | undefined,
+  mode: BatchMode | undefined,
+  visited: Set<ProxyId> = new Set(),
+): void {
+  if (visited.has(proxyId)) return;
+  visited.add(proxyId);
+  markDirty(proxyId, prop, mode);
+
+  const links = _parentLinks.get(proxy);
+  if (!links) return;
+  for (const link of links) {
+    notifyChange(link.parent, link.parent.__proxy_id, link.prop, link.mode, visited);
+  }
 }
 
 /** Returns true if `value` is already a Silas proxy. */
@@ -124,6 +178,7 @@ export function proxify<T extends object>(
           cached = proxify(value, { deep, batch: batchMode, _depth: (options._depth ?? 0) + 1 });
           _childProxyCache.set(value, cached);
         }
+        linkParent(cached, proxy, prop, effectiveMode);
         return cached;
       }
 
@@ -143,21 +198,34 @@ export function proxify<T extends object>(
 
       // Virtual: __source setter — atomic full replacement.
       if (prop === '__source') {
+        invariant(
+          val !== null && typeof val === 'object' && !Array.isArray(val),
+          '__source must be assigned a non-null, non-array object.',
+        );
         // Batch the entire replacement so subscribers get ONE notification.
         batchFn(() => {
+          const source = val as Record<string, unknown>;
           // Delete all existing own properties.
           const existingKeys = Object.keys(obj);
           for (const key of existingKeys) {
-            if (!(key in (val as object))) {
+            const existing = (obj as Record<string, unknown>)[key];
+            const retainsChild = Object.hasOwn(source, key) && source[key] === existing;
+            if (deep && isPlainObject(existing) && !retainsChild) {
+              const child = _childProxyCache.get(existing);
+              if (child) unlinkParent(child, proxy, key);
+            }
+            if (!Object.hasOwn(source, key)) {
               delete (obj as Record<string, unknown>)[key];
             }
           }
           // Copy all properties from the new value.
-          const newKeys = Object.keys(val as object);
+          const newKeys = Object.keys(source);
           for (const key of newKeys) {
-            (obj as Record<string, unknown>)[key] = (val as Record<string, unknown>)[key];
+            if (!RESERVED_PROPS.has(key)) {
+              (obj as Record<string, unknown>)[key] = source[key];
+            }
           }
-          markDirty(proxyId, undefined, effectiveMode);
+          notifyChange(proxy, proxyId, undefined, effectiveMode);
         });
         return true;
       }
@@ -179,10 +247,12 @@ export function proxify<T extends object>(
       if (result) {
         // Invalidate child proxy cache if the new value is different.
         if (deep && isPlainObject(oldVal)) {
+          const child = _childProxyCache.get(oldVal);
+          if (child) unlinkParent(child, proxy, prop);
           _childProxyCache.delete(oldVal);
         }
 
-        markDirty(proxyId, prop as string | symbol, effectiveMode);
+        notifyChange(proxy, proxyId, prop as string | symbol, effectiveMode);
       }
 
       return result;
@@ -205,9 +275,11 @@ export function proxify<T extends object>(
 
       if (result && hadProp) {
         if (deep && isPlainObject(oldVal)) {
+          const child = _childProxyCache.get(oldVal);
+          if (child) unlinkParent(child, proxy, prop);
           _childProxyCache.delete(oldVal);
         }
-        markDirty(proxyId, prop as string | symbol, effectiveMode);
+        notifyChange(proxy, proxyId, prop as string | symbol, effectiveMode);
       }
 
       return result;
@@ -224,7 +296,8 @@ export function proxify<T extends object>(
     },
   };
 
-  return new Proxy(target, handler) as Proxified<T>;
+  const proxy = new Proxy(target, handler) as Proxified<T>;
+  return proxy;
 }
 
 // ======================== TEST UTILITIES ====================================

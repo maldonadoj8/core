@@ -163,6 +163,7 @@ export function subscribe<T extends object>(
     observer,
     callback,
     once,
+    changedProps: undefined,
     unsubscribe: () => unsubscribe(ticket),
     track: <R>(fn: () => R): R => {
       // Reset tracked props before each tracking window so we capture a
@@ -299,12 +300,15 @@ function handleFlush(
       }
 
       try {
+        sub.changedProps = changedProps;
         const result = sub.callback(sub.target, sub);
         if (result === true || sub.once) {
           unsubscribe(ticket);
         }
       } catch (err) {
         console.error('[silasdevs/core] Error in subscription callback:', err);
+      } finally {
+        sub.changedProps = undefined;
       }
     }
   }

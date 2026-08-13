@@ -10,6 +10,9 @@ export interface UseQueryOptions {
   enabled?: boolean;
 }
 
+/** Async query function. Implementations may ignore the provided signal. */
+export type QueryFunction<T> = (signal: AbortSignal) => Promise<T>;
+
 export interface UseQueryResult<T> {
   /** The resolved data, or undefined if loading/error. */
   data: T | undefined;
@@ -45,11 +48,11 @@ export interface UseMutationResult<TData, TVariables> {
   mutate: (variables: TVariables) => void;
   /** Execute the mutation and return a promise. */
   mutateAsync: (variables: TVariables) => Promise<TData>;
-  /** The result of the last successful mutation. */
+  /** The result of the most recently invoked successful mutation. */
   data: TData | undefined;
   /** True while the mutation is executing. */
   isLoading: boolean;
-  /** Error from the last mutation attempt. */
+  /** Error from the most recently invoked mutation attempt. */
   error: unknown;
   /** Reset the mutation state. */
   reset: () => void;

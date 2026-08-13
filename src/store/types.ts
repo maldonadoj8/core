@@ -99,6 +99,8 @@ export interface TableConfig {
 export interface SchemaConfig {
   /** Table definitions, keyed by internal table name. */
   tables: Record<string, TableConfig>;
+  /** Reject unclassified payload data instead of using dynamic table fallback. Default: false. */
+  strict?: boolean;
 }
 
 /** Options for creating a Store. */

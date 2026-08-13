@@ -136,19 +136,32 @@ export class Store {
   paginated<T extends object = Record<string, unknown>>(
     table: string,
   ): PaginatedCollection<T> {
+    const pc = this.createPaginated<T>(table);
+    this.activatePaginated(pc);
+    return pc;
+  }
+
+  /**
+   * @internal Used by the React binding to defer registration until commit.
+   */
+  createPaginated<T extends object = Record<string, unknown>>(
+    table: string,
+  ): PaginatedCollection<T> {
     const resolved = this.schema.resolveByName(table);
     const key = resolved?.key ?? table;
+    return new PaginatedCollection<T>(this, key);
+  }
 
-    const pc = new PaginatedCollection<T>(this, key);
-
+  /** @internal Used by the React binding to activate a committed view. */
+  activatePaginated(pc: PaginatedCollection<any>): void {
+    const key = pc.table;
     let set = this._paginatedCollections.get(key);
     if (!set) {
       set = new Set();
       this._paginatedCollections.set(key, set);
     }
     set.add(pc);
-
-    return pc;
+    pc.activate();
   }
 
   /**

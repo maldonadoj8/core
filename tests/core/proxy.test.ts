@@ -85,6 +85,70 @@ describe('proxify', () => {
     expect(nested.value).toBe(1);
   });
 
+  it('notifies root subscribers when a deep child changes', () => {
+    const obj = proxify({ nested: { value: 1 } }, { deep: true });
+    const cb = vi.fn();
+    subscribe(obj, cb);
+
+    obj.nested.value = 2;
+
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it('notifies tracked ancestor properties when a deep child changes', () => {
+    const obj = proxify({ nested: { value: 1 }, other: 1 }, { deep: true });
+    const cb = vi.fn();
+    const sub = subscribe(obj, cb);
+    sub.track(() => { void obj.nested; });
+
+    obj.nested.value = 2;
+    expect(cb).toHaveBeenCalledOnce();
+
+    obj.other = 2;
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it('preserves parent propagation when __source retains a deep child', () => {
+    const nested = { value: 1 };
+    const obj = proxify({ nested, other: 1 }, { deep: true });
+    const child = obj.nested;
+    const cb = vi.fn();
+    subscribe(obj, cb);
+
+    (obj as any).__source = { nested, other: 2 };
+    cb.mockClear();
+    child.value = 2;
+
+    expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it('detaches the replaced deep child from its former parent', () => {
+    const obj = proxify({ nested: { value: 1 } }, { deep: true });
+    const oldChild = obj.nested;
+    const cb = vi.fn();
+    subscribe(obj, cb);
+
+    (obj as any).__source = { nested: { value: 2 } };
+    cb.mockClear();
+    oldChild.value = 3;
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it('detaches a child when __source only inherits its property', () => {
+    const nested = { value: 1 };
+    const obj = proxify({ nested }, { deep: true });
+    const child = obj.nested;
+    const cb = vi.fn();
+    subscribe(obj, cb);
+
+    (obj as any).__source = Object.create({ nested });
+    cb.mockClear();
+    child.value = 2;
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
   it('throws SilasError when target is null', () => {
     expect(() => proxify(null as any)).toThrow(SilasError);
   });
@@ -162,6 +226,24 @@ describe('proxify', () => {
     subscribe(obj, cb);
     (obj as any).__source = { a: 10, b: 20, c: 30 };
     expect(cb).toHaveBeenCalledOnce();
+  });
+
+  it('__source replacement ignores reserved own keys', () => {
+    const obj = proxify<Record<string, unknown>>({ safe: 0 });
+    const replacement = JSON.parse('{"safe":1,"__proto__":{"polluted":true},"constructor":"x","prototype":"y"}');
+
+    (obj as any).__source = replacement;
+
+    expect(obj.safe).toBe(1);
+    expect(Object.getPrototypeOf((obj as any).__source)).toBe(Object.prototype);
+    expect((obj as any).polluted).toBeUndefined();
+    expect((obj as any).constructor).toBe(Object);
+  });
+
+  it('__source replacement rejects non-object values', () => {
+    const obj = proxify({ value: 1 });
+    expect(() => { (obj as any).__source = null; }).toThrow(SilasError);
+    expect(() => { (obj as any).__source = []; }).toThrow(SilasError);
   });
 });
 
