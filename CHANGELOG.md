@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## 0.4.0
+
+### Minor Changes
+
+- [#12](https://github.com/maldonadoj8/core/pull/12) [`a1e9616`](https://github.com/maldonadoj8/core/commit/a1e9616b315c6c4c832ec21d1fbde36bf00ee620) Thanks [@maldonadoj8](https://github.com/maldonadoj8)! - Add strict schema classification, deep ancestor reactivity, lifecycle-safe paginated React views, and resilient query and mutation concurrency handling. Improve source replacement safety, compatibility batching isolation, and CI coverage enforcement.
+
 All notable changes to @silasdevs/core will be documented in this file.
 
 ## Unreleased
