@@ -36,24 +36,32 @@ export function useMutation<TData = unknown, TVariables = void>(
   const [isLoading, setLoading] = useState(false);
   const [error, setError]       = useState<unknown>(undefined);
 
+  // The newest invocation owns visible data, error, and loading state.
+  const invocationRef = useRef(0);
+
   // Keep a stable ref for opts so callbacks don't cause re-renders.
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
   const mutateAsync = useCallback(
     async (variables: TVariables): Promise<TData> => {
+      const invocation = ++invocationRef.current;
       setLoading(true);
       setError(undefined);
       try {
         const result = await fn(variables);
-        setData(result);
-        setLoading(false);
+        if (invocationRef.current === invocation) {
+          setData(result);
+          setLoading(false);
+        }
         optsRef.current.onSuccess?.(result, variables);
         optsRef.current.onSettled?.(result, undefined, variables);
         return result;
       } catch (err) {
-        setError(err);
-        setLoading(false);
+        if (invocationRef.current === invocation) {
+          setError(err);
+          setLoading(false);
+        }
         optsRef.current.onError?.(err, variables);
         optsRef.current.onSettled?.(undefined, err, variables);
         throw err;
@@ -72,6 +80,7 @@ export function useMutation<TData = unknown, TVariables = void>(
   );
 
   const reset = useCallback(() => {
+    invocationRef.current++;
     setData(undefined);
     setError(undefined);
     setLoading(false);

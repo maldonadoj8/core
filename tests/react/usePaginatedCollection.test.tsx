@@ -10,7 +10,7 @@
 // =============================================================================
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import React from 'react';
+import React, { StrictMode } from 'react';
 import { render, act, cleanup } from '@testing-library/react';
 import { createStore, defineSchema } from '../../src/store/index';
 import { setDefaultBatchMode as setBatchMode } from '../../src/core/batch';
@@ -231,6 +231,39 @@ describe('usePaginatedCollection', () => {
 
     expect(snapshot.value.count).toBe(3);
     expect(snapshot.value.cursorStart).toBe('1');
+  });
+
+  it('disposes the old view when the store changes', () => {
+    const storeA = makeStore();
+    const storeB = makeStore();
+    let snapshot: any;
+
+    function TestComponent({ store }: { store: Store }) {
+      snapshot = usePaginatedCollection(store, 'entrega');
+      return React.createElement('div', null, `count:${snapshot.count}`);
+    }
+
+    const { rerender } = render(React.createElement(TestComponent, { store: storeA }));
+    expect(storeA.inspect('entrega').paginatedViewCount).toBe(1);
+
+    rerender(React.createElement(TestComponent, { store: storeB }));
+
+    expect(storeA.inspect('entrega').paginatedViewCount).toBe(0);
+    expect(storeB.inspect('entrega').paginatedViewCount).toBe(1);
+  });
+
+  it('does not retain paginated views after StrictMode cleanup', () => {
+    const store = makeStore();
+
+    function TestComponent() {
+      usePaginatedCollection(store, 'entrega');
+      return React.createElement('div');
+    }
+
+    const { unmount } = render(React.createElement(StrictMode, null, React.createElement(TestComponent)));
+    unmount();
+
+    expect(store.inspect('entrega').paginatedViewCount).toBe(0);
   });
 });
 

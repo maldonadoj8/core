@@ -12,6 +12,7 @@ export { useMutation } from './useMutation.js';
 export type {
   UseQueryOptions,
   UseQueryResult,
+  QueryFunction,
   UseMutationOptions,
   UseMutationResult,
 } from './types.js';

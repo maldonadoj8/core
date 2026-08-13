@@ -7,7 +7,7 @@
 // =============================================================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { UseQueryOptions, UseQueryResult } from './types.js';
+import type { QueryFunction, UseQueryOptions, UseQueryResult } from './types.js';
 import { invariant } from '../core/errors.js';
 
 /**
@@ -32,7 +32,7 @@ import { invariant } from '../core/errors.js';
  * @param opts Optional configuration.
  */
 export function useQuery<T>(
-  fn: () => Promise<T>,
+  fn: QueryFunction<T>,
   deps: readonly unknown[] = [],
   opts: UseQueryOptions = {},
 ): UseQueryResult<T> {
@@ -46,21 +46,35 @@ export function useQuery<T>(
 
   // Track the latest call to handle race conditions (stale closures).
   const callIdRef = useRef(0);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const invalidate = useCallback(() => {
+    callIdRef.current++;
+    controllerRef.current?.abort();
+    controllerRef.current = null;
+  }, []);
 
   const execute = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
     const id = ++callIdRef.current;
     setLoading(true);
     setError(undefined);
     try {
-      const result = await fn();
-      if (callIdRef.current === id) {
+      const result = await fn(controller.signal);
+      if (callIdRef.current === id && !controller.signal.aborted) {
         setData(result);
         setLoading(false);
       }
     } catch (err) {
-      if (callIdRef.current === id) {
+      if (callIdRef.current === id && !controller.signal.aborted) {
         setError(err);
         setLoading(false);
+      }
+    } finally {
+      if (callIdRef.current === id) {
+        controllerRef.current = null;
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -68,11 +82,13 @@ export function useQuery<T>(
 
   useEffect(() => {
     if (!enabled) {
+      invalidate();
       setLoading(false);
       return;
     }
-    execute();
-  }, [execute, enabled]);
+    void execute();
+    return invalidate;
+  }, [execute, enabled, invalidate]);
 
   return { data, isLoading, error, refetch: execute };
 }

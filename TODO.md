@@ -12,13 +12,11 @@ This document tracks planned features, improvements, and known issues for @silas
 
 ---
 
-## Upcoming Release (v0.0.1)
+## Unreleased Work
 
-### Features
+### Completed
 
-### Bug Fixes
-
-### Documentation
+- [x] Strict schema classification with atomic validation.
 
 ---
 
@@ -30,9 +28,10 @@ This document tracks planned features, improvements, and known issues for @silas
 - [ ] 🟡 Predicate-based comparison in table configurations with type-safe support, allowing custom logic to determine if an incoming record should overwrite an existing one based on a user-defined function
 - [ ] 🟡 Single record and array classification based on schema resolver props, with query-key based fallback routing for records that don't match any resolver criteria.
 - [ ] 🟡 Support for query-key based data storage, allowing users to classify and cache incoming data based on custom query keys rather than just primary keys
-- [ ] 🟡 Strict mode for schema and classification errors, throwing detailed exceptions when records fail to classify or violate schema constraints
 
 #### API Improvements
+
+- [ ] 🟡 Mutation cancellation support for transports that can accept an `AbortSignal`.
 
 #### Developer Experience
 - [ ] 🟡 Store devtools extension for inspecting cache state and classification logic
@@ -71,4 +70,4 @@ Items completed in the current development cycle. These will be moved to CHANGEL
 
 ---
 
-*Last Updated: 2026-06-15*
+*Last Updated: 2026-08-12*

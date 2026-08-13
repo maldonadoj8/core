@@ -15,14 +15,10 @@
 import {
   proxify as coreProxify,
   subscribe,
-  setBatchMode,
   type Proxified,
   type Subscription,
   type SubscribeCallback,
 } from '../core/index.js';
-
-// Keep compat batch mode as sync for immediate notification like the original.
-setBatchMode('sync');
 
 // =============================================================================
 // Ticket-based subscription registry (mirrors original obs.js globals)
@@ -48,7 +44,7 @@ const OBJ_TICKETS: Record<string, Set<number>> = {};
  * Equivalent to the original `Obs.proxify(obj)`.
  */
 function proxify<T extends object>(obj: T): Proxified<T> {
-  return coreProxify(obj);
+  return coreProxify(obj, { batch: 'sync' });
 }
 
 /**

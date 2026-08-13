@@ -40,6 +40,16 @@ function makeStoreWithSoftDelete() {
 // =============================================================================
 
 describe('PaginatedCollection', () => {
+  it('creates an inactive view until explicitly activated', () => {
+    const store = makeStore();
+    const pc = store.createPaginated('entrega');
+
+    expect(store.inspect('entrega').paginatedViewCount).toBe(0);
+
+    store.activatePaginated(pc);
+    expect(store.inspect('entrega').paginatedViewCount).toBe(1);
+  });
+
   it('starts with empty state', () => {
     const store = makeStore();
     const pc = store.paginated('entrega');
@@ -98,6 +108,16 @@ describe('PaginatedCollection', () => {
 
     expect(pc.proxy.count).toBe(4);
     expect(pc.proxy.items.map((r: any) => r.id)).toEqual([1, 2, 3, 4]);
+  });
+
+  it('deduplicates repeated IDs within one page', () => {
+    const store = makeStore();
+    const pc = store.paginated('entrega');
+
+    pc.addPage([{ id: 1, nombre: 'First' }, { id: 1, nombre: 'Duplicate' }], 'descending');
+
+    expect(pc.proxy.items).toHaveLength(1);
+    expect(pc.proxy.items[0].nombre).toBe('First');
   });
 
   it('addPage with all duplicates is a no-op', () => {

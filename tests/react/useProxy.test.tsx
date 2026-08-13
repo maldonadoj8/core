@@ -126,6 +126,26 @@ describe('useProxy — property-level tracking', () => {
     expect(lastSnap.value.count).toBe(42);
   });
 
+  it('re-renders when a read deep branch changes', () => {
+    const proxy = proxify({ user: { name: 'Alice' }, email: 'alice@test.com' }, { deep: true });
+    const renderCount = { value: 0 };
+
+    function TestComponent({ value }: { value: any }) {
+      const snap = useProxy(value);
+      renderCount.value++;
+      return React.createElement('div', null, snap.user.name);
+    }
+
+    render(React.createElement(TestComponent, { value: proxy }));
+    expect(renderCount.value).toBe(1);
+
+    act(() => {
+      proxy.user.name = 'Bob';
+    });
+
+    expect(renderCount.value).toBe(2);
+  });
+
   it('handles proxy identity change (re-subscribes)', () => {
     const proxy1 = proxify({ value: 'A' });
     const proxy2 = proxify({ value: 'B' });

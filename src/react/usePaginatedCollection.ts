@@ -6,11 +6,10 @@
 // tracking, plus stable action functions for managing the window.
 // =============================================================================
 
-import { useRef, useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import type { Store } from '../store/store.js';
 import type { CursorDirection, PaginatedState } from '../store/types.js';
 import type { Proxified } from '../core/types.js';
-import { PaginatedCollection } from '../store/paginated-collection.js';
 import { cursorFor as _cursorFor } from '../store/cursor.js';
 import { useProxy } from './useProxy.js';
 
@@ -78,59 +77,45 @@ export function usePaginatedCollection<T extends object = Record<string, unknown
   table: string,
 ): UsePaginatedCollectionResult<T> {
 
-  // Create / recreate the PaginatedCollection when store or table changes.
-  const pcRef = useRef<PaginatedCollection<T> | null>(null);
-
-  const pc = useMemo(() => {
-    // Dispose the previous instance if store/table changed.
-    if (pcRef.current) {
-      store.disposePaginated(pcRef.current);
-    }
-    const instance = store.paginated<T>(table);
-    pcRef.current = instance;
-    return instance;
+  const paginatedView = useMemo(() => {
+    const view = store.createPaginated<T>(table);
+    return { owner: store, view };
   }, [store, table]);
 
-  // Dispose on true unmount.
-  // NOTE: We intentionally do NOT null pcRef here. In StrictMode, React
-  // unmounts/remounts effects — nulling the ref would cause in-flight
-  // async operations to silently fail. The useMemo above handles disposal
-  // when deps change, and this cleanup handles the final unmount.
   useEffect(() => {
+    paginatedView.owner.activatePaginated(paginatedView.view);
     return () => {
-      if (pcRef.current) {
-        store.disposePaginated(pcRef.current);
-      }
+      paginatedView.owner.disposePaginated(paginatedView.view);
     };
-  }, [store]);
+  }, [paginatedView]);
 
   // Subscribe to the paginated state via useProxy (property-level tracking).
-  const state = useProxy(pc.proxy as unknown as Proxified<PaginatedState<T>>);
+  const state = useProxy(paginatedView.view.proxy as unknown as Proxified<PaginatedState<T>>);
 
   // ===================== Stable action callbacks =============================
 
   const addPage = useCallback((records: T[], direction: CursorDirection) => {
-    pcRef.current?.addPage(records, direction);
-  }, []);
+    paginatedView.view.addPage(records, direction);
+  }, [paginatedView]);
 
   const addRecord = useCallback((record: T, prepend?: boolean) => {
-    pcRef.current?.addRecord(record, prepend);
-  }, []);
+    paginatedView.view.addRecord(record, prepend);
+  }, [paginatedView]);
 
   const removeRecord = useCallback((id: string | number) => {
-    pcRef.current?.removeRecord(id);
-  }, []);
+    paginatedView.view.removeRecord(id);
+  }, [paginatedView]);
 
   const clear = useCallback((then?: (...args: unknown[]) => void, ...args: unknown[]) => {
-    pcRef.current?.clear();
+    paginatedView.view.clear();
     if (then) {
       then(...args);
     }
-  }, []);
+  }, [paginatedView]);
 
   const setHasMore = useCallback((value: boolean) => {
-    pcRef.current?.setHasMore(value);
-  }, []);
+    paginatedView.view.setHasMore(value);
+  }, [paginatedView]);
 
   const cursorFor = useCallback((direction: CursorDirection) => {
     return _cursorFor(

@@ -17,6 +17,19 @@ function flushPromises() {
 }
 
 describe('useQuery', () => {
+  it('accepts callbacks that intentionally ignore the signal', () => {
+    const query = () => Promise.resolve('data');
+    let result: any;
+
+    function Comp() {
+      result = useQuery(query);
+      return React.createElement('div');
+    }
+
+    render(React.createElement(Comp));
+    expect(result.isLoading).toBe(true);
+  });
+
   it('starts in loading state', () => {
     let result: any;
     function Comp() {
@@ -115,6 +128,68 @@ describe('useQuery', () => {
     // Resolve the first (stale) query — should be ignored.
     await act(async () => resolvers[0]('first'));
     expect(result.data).toBe('second'); // Still 'second', not 'first'.
+  });
+
+  it('passes a signal and aborts the superseded request', async () => {
+    const signals: AbortSignal[] = [];
+    const resolvers: Array<(value: string) => void> = [];
+    const fetchFn = vi.fn((signal?: AbortSignal) => new Promise<string>(resolve => {
+      signals.push(signal!);
+      resolvers.push(resolve);
+    }));
+    let result: any;
+
+    function Comp() {
+      result = useQuery(fetchFn);
+      return React.createElement('div');
+    }
+
+    render(React.createElement(Comp));
+    act(() => { result.refetch(); });
+
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+
+    await act(async () => resolvers[1]('latest'));
+    expect(result.data).toBe('latest');
+  });
+
+  it('ignores a pending result after the query is disabled', async () => {
+    let resolveRequest!: (value: string) => void;
+    let result: any;
+    let setEnabled!: (value: boolean) => void;
+
+    function Comp() {
+      const [enabled, updateEnabled] = useState(true);
+      setEnabled = updateEnabled;
+      result = useQuery(() => new Promise<string>(resolve => { resolveRequest = resolve; }), [], { enabled });
+      return React.createElement('div');
+    }
+
+    render(React.createElement(Comp));
+    act(() => setEnabled(false));
+    await act(async () => resolveRequest('stale'));
+
+    expect(result.data).toBeUndefined();
+    expect(result.isLoading).toBe(false);
+  });
+
+  it('aborts the pending request on unmount', () => {
+    let signal!: AbortSignal;
+
+    function Comp() {
+      useQuery((currentSignal) => {
+        signal = currentSignal!;
+        return new Promise<string>(() => {});
+      });
+      return React.createElement('div');
+    }
+
+    const { unmount } = render(React.createElement(Comp));
+    unmount();
+
+    expect(signal.aborted).toBe(true);
   });
 
   it('enabled=false prevents execution', async () => {

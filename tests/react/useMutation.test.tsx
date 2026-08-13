@@ -67,6 +67,65 @@ describe('useMutation', () => {
     expect(result.data).toBe(10);
   });
 
+  it('keeps visible state owned by the latest mutation', async () => {
+    const resolvers: Array<(value: string) => void> = [];
+    const onSuccess = vi.fn();
+    let result: any;
+
+    function Comp() {
+      result = useMutation(
+        (value: string) => new Promise<string>(resolve => { resolvers.push(resolve); }),
+        { onSuccess },
+      );
+      return React.createElement('div');
+    }
+
+    render(React.createElement(Comp));
+    const first = result.mutateAsync('first');
+    const second = result.mutateAsync('second');
+
+    await act(async () => resolvers[1]('second result'));
+    expect(result.data).toBe('second result');
+    expect(result.isLoading).toBe(false);
+
+    await act(async () => resolvers[0]('first result'));
+    await expect(first).resolves.toBe('first result');
+    await expect(second).resolves.toBe('second result');
+    expect(result.data).toBe('second result');
+    expect(onSuccess).toHaveBeenCalledWith('first result', 'first');
+    expect(onSuccess).toHaveBeenCalledWith('second result', 'second');
+  });
+
+  it('keeps the latest mutation error over an older success', async () => {
+    const resolvers: Array<(value: string) => void> = [];
+    let rejectLatest!: (error: Error) => void;
+    let result: any;
+
+    function Comp() {
+      result = useMutation((value: string) => {
+        if (value === 'latest') {
+          return new Promise<string>((_resolve, reject) => { rejectLatest = reject; });
+        }
+        return new Promise<string>(resolve => { resolvers.push(resolve); });
+      });
+      return React.createElement('div');
+    }
+
+    render(React.createElement(Comp));
+    const first = result.mutateAsync('first');
+    const latest = result.mutateAsync('latest');
+    const latestExpectation = expect(latest).rejects.toThrow('latest failed');
+
+    await act(async () => rejectLatest(new Error('latest failed')));
+    await latestExpectation;
+    await act(async () => resolvers[0]('first result'));
+    await expect(first).resolves.toBe('first result');
+
+    expect(result.error).toBeInstanceOf(Error);
+    expect(result.error.message).toBe('latest failed');
+    expect(result.data).toBeUndefined();
+  });
+
   it('captures error state on failure', async () => {
     let result: any;
     function Comp() {
@@ -208,6 +267,26 @@ describe('useMutation', () => {
       result.reset();
     });
 
+    expect(result.data).toBeUndefined();
+    expect(result.error).toBeUndefined();
+    expect(result.isLoading).toBe(false);
+  });
+
+  it('reset suppresses visible updates from a pending mutation', async () => {
+    let resolveMutation!: (value: string) => void;
+    let result: any;
+
+    function Comp() {
+      result = useMutation(() => new Promise<string>(resolve => { resolveMutation = resolve; }));
+      return React.createElement('div');
+    }
+
+    render(React.createElement(Comp));
+    const pending = result.mutateAsync();
+    act(() => result.reset());
+    await act(async () => resolveMutation('late result'));
+
+    await expect(pending).resolves.toBe('late result');
     expect(result.data).toBeUndefined();
     expect(result.error).toBeUndefined();
     expect(result.isLoading).toBe(false);

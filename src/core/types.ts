@@ -88,6 +88,8 @@ export interface Subscription<T extends object = Record<string, unknown>> {
   readonly callback: SubscribeCallback<T>;
   /** Whether this subscription auto-removes after one invocation. */
   readonly once: boolean;
+  /** Properties changed in the notification currently being delivered. */
+  changedProps: ReadonlySet<string | symbol> | undefined;
   /** Programmatically cancel this subscription. */
   unsubscribe: () => void;
   /**
